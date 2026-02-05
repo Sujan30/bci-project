@@ -1,0 +1,6 @@
+[console_scripts]
+sleepbci-combine = sleep_bci.preprocessing.combine:main
+sleepbci-preprocess = sleep_bci.preprocessing.run_preprocess:main
+sleepbci-serve = sleep_bci.api.main:main
+sleepbci-simulate = sleep_bci.stream.simulate:main
+sleepbci-train = sleep_bci.model.train:main

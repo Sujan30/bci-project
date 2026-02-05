@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sleep-bci"
+version = "0.1.0"
+description = "EEG sleep stage state detection pipeline (preprocess -> features -> model -> API)."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "scipy",
+  "scikit-learn",
+  "joblib",
+  "mne",
+  "fastapi",
+  "uvicorn",
+  "pydantic",
+  "tqdm",
+]
+
+[project.scripts]
+sleepbci-preprocess = "sleep_bci.preprocessing.run_preprocess:main"
+sleepbci-combine = "sleep_bci.preprocessing.combine:main"
+sleepbci-train = "sleep_bci.model.train:main"
+sleepbci-serve = "sleep_bci.api.main:main"
+sleepbci-simulate = "sleep_bci.stream.simulate:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
