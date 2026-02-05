@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
-
+import uuid
 import os
 import glob
 
@@ -27,30 +27,46 @@ def read_root():
     return {"message": "Hello, World!"}
 
 
+JOBS = {}
 
 #pre process the dataset, and return a job id so we can keep track of it
 @app.post("/preprocess")
 def preprocess_data(request: PreprocessRequest):
-    raw_dir = request.DatasetDescription.raw_dir
-    out_dir = request.OutputDir.out_dir
+    raw_dir = request.dataset.raw_dir
+    out_dir = request.output.out_dir
+
+    preprocess_config = request.preprocessing_config
+
+
+    #check validation
 
     if os.path.exists(raw_dir):
-        if not (glob.glob(os.path.join(raw_dir, "*PSG.edf")) and glob.glob(os.path.join(raw_dir, "*Hypnogram.edf"))):
-            raise HTTPException(status_code= 404, detail = "No PSG and hypongram files found")
-        if not glob.glob(os.path.join(raw_dir, "*PSG.edf")):
-            raise HTTPException(status_code=404, detail = "No PSG files found")
+        if not (glob.glob(os.path.exists(raw_dir, "*PSG.edf")) and glob.glob(os.path.exists(raw_dir, "*Hypnogram.edf"))):
+            raise HTTPException(status_code= 400,detail = "No PSG and hypongram files found")
+        if not glob.glob(os.path.exists(raw_dir,"PSG.edf")):
+            raise HTTPException(status_code=400,detail = "No PSG files found")
         if not glob.glob(os.path.exists(raw_dir, "*Hypnogram.edf")):
-            raise HTTPException(status_code=404, detail = "No Hypnogram files found")
-
-
-
-       
+            raise HTTPException(status_code=400, detail = "No Hypnogram files found")
     else:
-        raise HTTPException(status_code=404, detail="Not a valid file path for raw directory")
+        raise HTTPException(status_code=400, detail="Raw directory path not found")
     
     if not os.path.exists(out_dir):
-        raise HTTPException(status_code=404, detail="Output directory not a valid path")
+        os.mkdir("Output Directory")
+
+
+    #create job
+    job_id = uuid.uuid4()
+
+    JOBS[job_id] = {
+        
+    }
+
+
     
+    
+    
+    
+
 
 
     
