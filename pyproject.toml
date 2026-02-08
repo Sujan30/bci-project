@@ -18,6 +18,7 @@ dependencies = [
   "uvicorn",
   "pydantic",
   "tqdm",
+  "python-multipart",
 ]
 
 [project.scripts]

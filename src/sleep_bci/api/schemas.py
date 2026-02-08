@@ -13,7 +13,7 @@ from datetime import datetime
 
 
 class JobStatus(str, Enum):
-    queued = "queued",
+    queued = "queued"
     running = "running"
     succeeded = "succeeded"
     failed = "failed"
@@ -75,6 +75,21 @@ class PreprocessRequest(BaseModel):
         description="API contract version."
     )
 
+class DryRunFileInfo(BaseModel):
+    psg_file: str
+    hypnogram_file: str
+
+
+class DryRunResponse(BaseModel):
+    valid: bool
+    matched_pairs: int
+    files: List[DryRunFileInfo]
+    raw_dir: str
+    out_dir: str
+    preprocessing_config: PreprocessingConfig
+    message: str
+
+
 class JobCreatedResponse(BaseModel):
     job_id: str
     status: JobStatus
@@ -84,6 +99,14 @@ class ErrorDetail(BaseModel):
     code: str
     message: str
     details: Optional[Dict[str, Any]] = None
+
+class UploadResponse(BaseModel):
+    session_id: str
+    raw_dir: str
+    matched_pairs: int
+    files: List[DryRunFileInfo]
+    message: str
+
 
 class PreprocessStatusResponse(BaseModel):
     job_id: str
