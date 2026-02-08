@@ -3,7 +3,7 @@ from __future__ import annotations
 import glob
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import mne
 import numpy as np
@@ -56,12 +56,14 @@ def discover_sleep_edf_pairs(raw_dir: str) -> List[Tuple[str, str]]:
 
     hyp_map: Dict[str, str] = {}
     for hf in hyp_files:
-        key = os.path.basename(hf).split("-")[0]
+        prefix = os.path.basename(hf).split("-")[0]
+        key = prefix[:-2] if len(prefix) > 2 else prefix
         hyp_map[key] = hf
 
     pairs: List[Tuple[str, str]] = []
     for pf in psg_files:
-        key = os.path.basename(pf).split("-")[0]
+        prefix = os.path.basename(pf).split("-")[0]
+        key = prefix[:-2] if len(prefix) > 2 else prefix
         hf = hyp_map.get(key)
         if hf:
             pairs.append((pf, hf))
@@ -133,12 +135,29 @@ def epoch_and_label(
     return X[keep], y[keep]
 
 
+def discover_and_validate(
+    raw_dir: str,
+    spec: Optional[PreprocessSpec] = None,
+    max_files: Optional[int] = None,
+) -> List[Tuple[str, str]]:
+    """Discover and return matched PSG/Hypnogram pairs without processing.
+
+    Useful for dry-run validation from the API.
+    """
+    spec = spec or PreprocessSpec()
+    pairs = discover_sleep_edf_pairs(raw_dir)
+    if max_files is not None:
+        pairs = pairs[:max_files]
+    return pairs
+
+
 def preprocess_sleep_edf(
     raw_dir: str,
     out_dir: str,
     spec: Optional[PreprocessSpec] = None,
     dry_run: bool = False,
     max_files: Optional[int] = None,
+    on_progress: Optional[Callable[[int, int, str], None]] = None,
 ) -> Tuple[int, int]:
     """Preprocess Sleep-EDF EDF files into per-night NPZ artifacts.
 
@@ -158,8 +177,11 @@ def preprocess_sleep_edf(
         return 0, 0
 
     kept = skipped = 0
-    for psg_path, hyp_path in tqdm(pairs, desc="Preprocessing nights"):
+    iterator = pairs if on_progress is not None else tqdm(pairs, desc="Preprocessing nights")
+    for idx, (psg_path, hyp_path) in enumerate(iterator):
         night_id = os.path.basename(psg_path).split("-")[0]
+        if on_progress is not None:
+            on_progress(idx, len(pairs), night_id)
         out_path = os.path.join(out_dir, f"{night_id}.npz")
         try:
             raw = load_raw_channel(psg_path, spec.channel)
@@ -187,3 +209,8 @@ def preprocess_sleep_edf(
     if kept == 0:
         raise RuntimeError("Preprocessing finished but produced 0 nights. Inspect logs above.")
     return kept, skipped
+
+
+#run using this command: 
+
+#uvicorn app:app --reload
