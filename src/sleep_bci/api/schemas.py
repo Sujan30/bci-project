@@ -8,7 +8,7 @@ via route versioning (e.g., /v1/preprocess).
 
 from typing import Optional, List, Dict, Any
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 
@@ -34,9 +34,16 @@ class PreprocessingConfig(BaseModel):
     )
 
     notch: Optional[float] = Field(
-        default=60.0,
-        description="Optional notch filter frequency in Hz."
+        default=None,
+        description="Optional notch filter frequency in Hz. Omit if bandpass already excludes it."
     )
+
+    @field_validator("notch", mode="before")
+    @classmethod
+    def _notch_must_be_positive_or_none(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError("notch must be a positive frequency (e.g. 50 or 60) or null/omitted")
+        return v
 
 class DatasetDescription(BaseModel):
     type: str = Field(
@@ -49,9 +56,9 @@ class DatasetDescription(BaseModel):
     )
     
 class OutputDir(BaseModel):
-    out_dir: str = Field(
-        ...,
-        description="the directory where the processed files will win"
+    out_dir: Optional[str] = Field(
+        default=None,
+        description="Output directory for processed files. Auto-generated if omitted."
     )
     combine: bool = Field(
         default=True,

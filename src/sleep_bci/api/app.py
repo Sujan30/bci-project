@@ -30,6 +30,7 @@ from sleep_bci.preprocessing.combine import combine_nights
 logger = logging.getLogger(__name__)
 
 UPLOAD_PREFIX = "sleep-bci-upload-"
+OUTPUT_PREFIX = "sleep-bci-output-"
 
 app = FastAPI()
 
@@ -193,6 +194,9 @@ def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks
     raw_dir = request.dataset.raw_dir
     out_dir = request.output.out_dir
     combine = request.output.combine
+
+    if out_dir is None:
+        out_dir = tempfile.mkdtemp(prefix=OUTPUT_PREFIX)
 
     # --- Validation ---
 
