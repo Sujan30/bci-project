@@ -137,3 +137,51 @@ class PreprocessStatusResponse(BaseModel):
 
 
 
+class TrainConfigRequest(BaseModel):
+    npz_dir: str = Field(
+        ...,
+        description="The directory where your pre preprocessed .npz files live"
+    )
+    model_out: Optional[str] = Field(
+        default=None,
+        description="Where the training output will leave"
+    )
+    fs: float = Field(
+        default=100.0,
+        gt=0,
+        description="Sampling frequency in Hz (must match preprocessing)"
+    )
+    n_splits: int = Field(
+        default=5,
+        ge=2,
+        description="the number of cross validation folds"
+    )
+
+class TrainingJobCreated(BaseModel):
+    training_id: str
+    status: JobStatus
+    status_url: str
+
+class TrainingStatusResponse(BaseModel):
+    npz_dir: str
+    training_id: str
+    status: JobStatus
+   
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+
+    progress: Optional[float] = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="The progress of training the model"
+    )
+    message: Optional[str] = None
+    output_location : Optional[str] = None
+
+    error: Optional[ErrorDetail] = None
+
+
+
+
