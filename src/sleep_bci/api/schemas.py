@@ -10,6 +10,7 @@ from typing import Optional, List, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
+import os
 
 
 class JobStatus(str, Enum):
@@ -58,12 +59,22 @@ class DatasetDescription(BaseModel):
 class OutputDir(BaseModel):
     out_dir: Optional[str] = Field(
         default=None,
+        examples=[None],
         description="Output directory for processed files. Auto-generated if omitted."
     )
     combine: bool = Field(
         default=True,
         description="Whether to generate combined dataset artifact."
     )
+
+    @field_validator("out_dir", mode="before")
+    @classmethod
+    def _out_dir_must_be_absolute_or_none(cls, v):
+        if v is not None and not os.path.isabs(v):
+            raise ValueError(
+                f"out_dir must be an absolute path (e.g. /tmp/output) or null/omitted, got '{v}'"
+            )
+        return v
 
 class PreprocessRequest(BaseModel):
     dataset: DatasetDescription
@@ -144,6 +155,7 @@ class TrainConfigRequest(BaseModel):
     )
     model_out: Optional[str] = Field(
         default=None,
+        examples=[None],
         description="Where the training output will leave"
     )
     fs: float = Field(
@@ -156,6 +168,15 @@ class TrainConfigRequest(BaseModel):
         ge=2,
         description="the number of cross validation folds"
     )
+
+    @field_validator("model_out", mode="before")
+    @classmethod
+    def _model_out_must_be_absolute_or_none(cls, v):
+        if v is not None and not os.path.isabs(v):
+            raise ValueError(
+                f"model_out must be an absolute path (e.g. /tmp/model.joblib) or null/omitted, got '{v}'"
+            )
+        return v
 
 class TrainingJobCreated(BaseModel):
     training_id: str
