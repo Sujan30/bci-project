@@ -1,6 +1,7 @@
 from __future__ import annotations
 import argparse
 import glob
+import json
 import os
 import numpy as np
 
@@ -51,12 +52,15 @@ def load_nightly_npz(processed_dir: str) -> tuple[np.ndarray, np.ndarray, np.nda
     )
 
 
-def train_lda(X: np.ndarray, y: np.ndarray, night_ids: np.ndarray, fs: float, n_splits: int) -> ModelBundle:
+def train_lda(
+    X: np.ndarray, y: np.ndarray, night_ids: np.ndarray, fs: float, n_splits: int,
+) -> tuple[ModelBundle, dict]:
     X_feat = extract_features_batch(X, fs=fs)
 
     clf = make_pipeline(StandardScaler(), LinearDiscriminantAnalysis())
     gkf = GroupKFold(n_splits=n_splits)
 
+    fold_results = []
     bal_accs, macro_f1s = [], []
     for fold, (train_idx, test_idx) in enumerate(gkf.split(X_feat, y, groups=night_ids), 1):
         clf.fit(X_feat[train_idx], y[train_idx])
@@ -67,6 +71,14 @@ def train_lda(X: np.ndarray, y: np.ndarray, night_ids: np.ndarray, fs: float, n_
         bal_accs.append(bal)
         macro_f1s.append(mf1)
 
+        report = classification_report(y[test_idx], pred, digits=3, output_dict=True)
+        fold_results.append({
+            "fold": fold,
+            "balanced_accuracy": round(bal, 4),
+            "macro_f1": round(mf1, 4),
+            "classification_report": report,
+        })
+
         print(f"Fold {fold}: balanced acc={bal:.3f} | macro F1={mf1:.3f}")
         print(classification_report(y[test_idx], pred, digits=3))
 
@@ -75,7 +87,22 @@ def train_lda(X: np.ndarray, y: np.ndarray, night_ids: np.ndarray, fs: float, n_
     print(f"Macro F1 mean±std:     {np.mean(macro_f1s):.4f} ± {np.std(macro_f1s):.4f}")
 
     clf.fit(X_feat, y)
-    return ModelBundle(pipeline=clf, label_map=DEFAULT_LABEL_MAP, fs=fs)
+
+    results = {
+        "n_splits": n_splits,
+        "fs": fs,
+        "total_epochs": int(X.shape[0]),
+        "total_nights": int(len(set(night_ids))),
+        "folds": fold_results,
+        "overall": {
+            "balanced_accuracy_mean": round(float(np.mean(bal_accs)), 4),
+            "balanced_accuracy_std": round(float(np.std(bal_accs)), 4),
+            "macro_f1_mean": round(float(np.mean(macro_f1s)), 4),
+            "macro_f1_std": round(float(np.std(macro_f1s)), 4),
+        },
+    }
+
+    return ModelBundle(pipeline=clf, label_map=DEFAULT_LABEL_MAP, fs=fs), results
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -90,10 +117,15 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     X, y, night_ids = load_nightly_npz(args.processed_dir)
-    bundle = train_lda(X, y, night_ids, fs=args.fs, n_splits=args.n_splits)
-    os.makedirs(os.path.dirname(args.model_out) or ".", exist_ok=True)
+    bundle, results = train_lda(X, y, night_ids, fs=args.fs, n_splits=args.n_splits)
+    out_dir = os.path.dirname(args.model_out) or "."
+    os.makedirs(out_dir, exist_ok=True)
     save_bundle(args.model_out, bundle)
+    results_path = os.path.join(out_dir, "results.json")
+    with open(results_path, "w") as f:
+        json.dump(results, f, indent=2)
     print("\n✅ Saved model:", args.model_out)
+    print("✅ Saved results:", results_path)
 
 
 if __name__ == "__main__":

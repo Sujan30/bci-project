@@ -94,10 +94,10 @@ def apply_standard_preprocessing(raw: mne.io.BaseRaw, spec: PreprocessSpec) -> m
 
 
 def load_hypnogram_annotations(hyp_path: str) -> mne.Annotations:
-    hyp = mne.io.read_raw_edf(hyp_path, preload=False, verbose="ERROR")
-    if hyp.annotations is None:
+    annotations = mne.read_annotations(hyp_path)
+    if len(annotations) == 0:
         raise ValueError(f"No annotations found in hypnogram file: {hyp_path}")
-    return hyp.annotations
+    return annotations
 
 
 def epoch_and_label(

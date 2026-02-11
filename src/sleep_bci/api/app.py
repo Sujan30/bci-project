@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import shutil
@@ -315,14 +316,20 @@ def update_training(
         logger.info("Training %s: loading nightly NPZ files...", train_id)
         X, Y, night_ids = load_nightly_npz(npz_directory)
         logger.info("Training %s: loaded %d epochs from %d nights", train_id, X.shape[0], len(set(night_ids)))
-        bundle = train_lda(X, Y, night_ids, fs=fs, n_splits=n_splits)
+        bundle, results = train_lda(X, Y, night_ids, fs=fs, n_splits=n_splits)
         logger.info("Training %s: saving model to %s", train_id, model_out)
         save_bundle(model_out, bundle)
+        out_dir = os.path.dirname(model_out)
+        results_path = os.path.join(out_dir, "results.json")
+        with open(results_path, "w") as f:
+            json.dump(results, f, indent=2)
+        logger.info("Training %s: saved results to %s", train_id, results_path)
         job["status"] = JobStatus.succeeded
         job['progress'] = 100
         job['finished_at'] = datetime.now()
-        job['output_location'] = model_out
+        job['output_location'] = out_dir
         job['message'] = "Training complete"
+        job['results'] = results
         logger.info("Training %s succeeded", train_id)
     except Exception as e:
         job["status"] = JobStatus.failed

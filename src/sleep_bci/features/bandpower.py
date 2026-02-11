@@ -6,7 +6,7 @@ from scipy.signal import welch
 def bandpower(epoch_1d: np.ndarray, fs: float, low_hz: float, high_hz: float) -> float:
     freq, psd = welch(epoch_1d, fs=fs, nperseg=int(4 * fs))
     mask = (freq >= low_hz) & (freq <= high_hz)
-    return float(np.trapz(psd[mask], freq[mask]))
+    return float(np.trapezoid(psd[mask], freq[mask]))
 
 
 def extract_features_epoch(epoch: np.ndarray, fs: float = 100.0) -> np.ndarray:
