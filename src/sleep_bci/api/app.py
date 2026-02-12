@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import shutil
@@ -19,6 +20,9 @@ from schemas import (
     DryRunFileInfo,
     DryRunResponse,
     UploadResponse,
+    TrainConfigRequest, 
+    TrainingJobCreated,
+    TrainingStatusResponse
 )
 from sleep_bci.preprocessing.core import (
     PreprocessSpec,
@@ -26,6 +30,8 @@ from sleep_bci.preprocessing.core import (
     discover_and_validate,
 )
 from sleep_bci.preprocessing.combine import combine_nights
+from sleep_bci.model.train import load_nightly_npz, train_lda
+from sleep_bci.model.artifacts import save_bundle
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +260,7 @@ def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks
         "started_at": None,
         "finished_at": None,
         "message": None,
-        "output_location": None,
+        "output_location": out_dir,
         "error": None,
     }
 
@@ -286,4 +292,142 @@ def get_preprocessing_status(job_id: str):
         error=job["error"],
     )
     return response
+
+training_data = {}
+
+
+#helper function for background task for training
+
+def update_training(
+        train_id: str,
+        npz_directory: str,
+        model_out: str,
+        fs: float, 
+        n_splits: int
+
+):
+    job = training_data[train_id]
+    job["status"] = JobStatus.running
+    job["started_at"] = datetime.now()
+    job["message"] = f"now working on training {train_id}"
+    logger.info("Training %s started — npz_dir=%s, model_out=%s", train_id, npz_directory, model_out)
+
+    try:
+        logger.info("Training %s: loading nightly NPZ files...", train_id)
+        X, Y, night_ids = load_nightly_npz(npz_directory)
+        logger.info("Training %s: loaded %d epochs from %d nights", train_id, X.shape[0], len(set(night_ids)))
+        bundle, results = train_lda(X, Y, night_ids, fs=fs, n_splits=n_splits)
+        logger.info("Training %s: saving model to %s", train_id, model_out)
+        save_bundle(model_out, bundle)
+        out_dir = os.path.dirname(model_out)
+        results_path = os.path.join(out_dir, "results.json")
+        with open(results_path, "w") as f:
+            json.dump(results, f, indent=2)
+        logger.info("Training %s: saved results to %s", train_id, results_path)
+        job["status"] = JobStatus.succeeded
+        job['progress'] = 100
+        job['finished_at'] = datetime.now()
+        job['output_location'] = out_dir
+        job['message'] = "Training complete"
+        job['results'] = results
+        logger.info("Training %s succeeded", train_id)
+    except Exception as e:
+        job["status"] = JobStatus.failed
+        job["finished_at"] = datetime.now()
+        job["error"] = ErrorDetail(
+            code="TRAINING_ERROR",
+            message=str(e),
+            details={"traceback": traceback.format_exc()},
+        )
+        job["message"] = f"Failed: {e}"
+        logger.error("Training %s failed: %s", train_id, e)
+        
+
+    
+
+@app.post("/train")
+def train_model(request: TrainConfigRequest, background_task: BackgroundTasks):
+    
+    # step 1. validate
+
+    if not (os.path.exists(request.npz_dir)):
+        raise HTTPException(status_code=400,detail= "NPZ directory not found")
+
+    import glob as _glob
+    night_files = [
+        f for f in _glob.glob(os.path.join(request.npz_dir, "*.npz"))
+        if "sleep_edf_all" not in os.path.basename(f)
+    ]
+    if len(night_files) == 0:
+        raise HTTPException(status_code=400, detail="No .npz night files found in npz_dir")
+    if len(night_files) < request.n_splits:
+        raise HTTPException(
+            status_code=400,
+            detail=f"n_splits={request.n_splits} but only {len(night_files)} night(s) found. "
+                   f"n_splits must be <= number of nights.",
+        )
+
+    if request.model_out is None:
+        model_out = os.path.join(tempfile.mkdtemp(prefix=OUTPUT_PREFIX), "model.joblib")
+    else:
+        model_out = request.model_out
+    
+    train_id = str(uuid.uuid4())
+
+    training_data[train_id]= {
+        "npz_dir": request.npz_dir,
+        "status": JobStatus.queued,
+        "model_out": model_out,
+        "fs": request.fs,
+        "n_splits": request.n_splits,
+        "created_at": datetime.now(),
+        "progress": 0,
+        "started_at": None,
+        "finished_at": None,
+        "message": None,
+        "output_location": model_out,
+        "error": None,
+    }
+    
+    background_task.add_task(update_training, train_id, request.npz_dir, model_out, request.fs, request.n_splits)
+
+    return TrainingJobCreated(
+        training_id=train_id, 
+        status = JobStatus.queued,
+        status_url=f"/train/{train_id}"
+    )
+    
+
+
+@app.get("/training/{train_id}")
+def get_training_status(train_id: str):
+    if train_id not in training_data:
+        raise HTTPException(status_code=404, detail="train_id not found")
+    job = training_data[train_id]
+    return TrainingStatusResponse(
+        npz_dir=job["npz_dir"],
+        training_id=train_id,
+        status=job['status'],
+        created_at=job['created_at'],
+        started_at=job['started_at'],
+        finished_at=job['finished_at'],
+        progress=job['progress'],
+        message=job['message'],
+        output_location=job['output_location']
+    )
+    
+    
+
+
+
+
+
+    
+
+    
+
+
+
+
+
 

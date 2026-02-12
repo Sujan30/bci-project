@@ -14,6 +14,9 @@ pip install -e .
 
 ## Data (not included)
 
+Or you could get the data from here:
+https://physionet.org/content/sleep-edfx/1.0.0/
+
 Place Sleep-EDF (sleep-cassette) EDF files under:
 
 ```
