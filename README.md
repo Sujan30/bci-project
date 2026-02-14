@@ -53,3 +53,12 @@ sleepbci-simulate --processed_dir data/processed/nightly --model_path models/lda
 ## Label mapping
 
 W=0, N1=1, N2=2, N3=3, REM=4
+
+
+## Quick example start
+
+```bash
+sleepbci-serve #start the server
+open http://localhost:8000/docs #open the server docs
+./test_api.sh
+```
