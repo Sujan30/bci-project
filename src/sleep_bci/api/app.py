@@ -10,7 +10,7 @@ from typing import List
 
 from fastapi import FastAPI, File, HTTPException, BackgroundTasks, UploadFile
 
-from schemas import (
+from sleep_bci.api.schemas import (
     PreprocessStatusResponse,
     ErrorDetail,
     JobCreatedResponse,
@@ -20,7 +20,7 @@ from schemas import (
     DryRunFileInfo,
     DryRunResponse,
     UploadResponse,
-    TrainConfigRequest, 
+    TrainConfigRequest,
     TrainingJobCreated,
     TrainingStatusResponse
 )
@@ -195,7 +195,7 @@ def run_preprocess_job(
 
 
 #pre process the dataset, and return a job id so we can keep track of it
-@app.post("/preprocess")
+@app.post("/v1/preprocess")
 def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks):
     raw_dir = request.dataset.raw_dir
     out_dir = request.output.out_dir
@@ -267,13 +267,13 @@ def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks
     background_task.add_task(run_preprocess_job, job_id, raw_dir, out_dir, spec, combine)
 
     response = JobCreatedResponse(
-        job_id=job_id, status=JobStatus.queued, status_url=f"/preprocess/{job_id}"
+        job_id=job_id, status=JobStatus.queued, status_url=f"/v1/preprocess/{job_id}"
     )
 
     return response
 
 
-@app.get("/preprocess/{job_id}")
+@app.get("/v1/preprocess/{job_id}")
 def get_preprocessing_status(job_id: str):
 
     if job_id not in JOBS:

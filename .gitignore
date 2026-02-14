@@ -4,9 +4,15 @@ __pycache__/
 .venv/
 .env
 .DS_Store
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
 data/processed/**
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 models/**
 !models/.gitkeep
 venv/
+claude_docs/
