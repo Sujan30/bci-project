@@ -202,6 +202,10 @@ class TrainingStatusResponse(BaseModel):
     output_location : Optional[str] = None
 
     error: Optional[ErrorDetail] = None
+    results: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Cross-validation results from LDA training (available once training succeeds)."
+    )
 
 
 

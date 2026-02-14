@@ -413,7 +413,8 @@ def get_training_status(train_id: str):
         finished_at=job['finished_at'],
         progress=job['progress'],
         message=job['message'],
-        output_location=job['output_location']
+        output_location=job['output_location'],
+        results=job.get('results'),
     )
     
     
