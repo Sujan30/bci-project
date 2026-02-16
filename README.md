@@ -92,6 +92,12 @@ docker run --rm \
   sleep-bci:latest sleepbci-preprocess --help
 ```
 
+
+##Docker Services
+<img width="1846" height="424" alt="image" src="https://github.com/user-attachments/assets/a1ff9654-ef2a-404c-93f7-8d4d7e5d7606" />
+
+
+
 ### Environment Variables
 
 Copy `.env.example` to `.env` and customize:
