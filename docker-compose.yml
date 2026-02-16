@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Production API server
+  api:
+    build: .
+    container_name: sleep-bci-api
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      - PORT=${PORT:-8000}
+      - HOST=${HOST:-0.0.0.0}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8000}/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # CLI service for running commands
+  cli:
+    build: .
+    profiles:
+      - cli
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    entrypoint: ["/docker-entrypoint.sh"]
+
+  # Development service with hot reload
+  dev:
+    build: .
+    profiles:
+      - dev
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      - PORT=${PORT:-8000}
+      - HOST=${HOST:-0.0.0.0}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./models:/app/models
+    command:
+      - uvicorn
+      - sleep_bci.api.app:app
+      - --reload
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "${PORT:-8000}"

@@ -16,7 +16,7 @@ class PreprocessSpec:
     channel: str = "EEG Fpz-Cz"
     epoch_sec: int = 30
     bandpass_hz: Tuple[float, float] = (0.3, 30.0)
-    notch_hz: Optional[float] = 60.0
+    notch_hz: Optional[float] = None  # Disabled: Sleep-EDF is 100Hz (Nyquist=50Hz), can't filter at 60Hz
     target_sfreq: Optional[float] = 100.0
 
 

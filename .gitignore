@@ -16,3 +16,4 @@ models/**
 !models/.gitkeep
 venv/
 claude_docs/
+data/results

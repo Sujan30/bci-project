@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+.env.local
+
+# Data and models (large files, should be mounted as volumes)
+data/raw/**
+data/processed/**
+models/**
+
+# Documentation
+claude_docs/
+*.md
+!README.md
+
+# Test files
+test_api.sh
+tests/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
