@@ -7,3 +7,12 @@ fastapi
 uvicorn
 pydantic
 tqdm
+python-multipart
+
+[dev]
+pytest>=7.0
+pytest-cov
+pytest-asyncio
+httpx
+ruff
+mypy

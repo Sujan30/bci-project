@@ -21,6 +21,16 @@ dependencies = [
   "python-multipart",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "pytest-cov",
+  "pytest-asyncio",
+  "httpx",
+  "ruff",
+  "mypy",
+]
+
 [project.scripts]
 sleepbci-preprocess = "sleep_bci.preprocessing.run_preprocess:main"
 sleepbci-combine = "sleep_bci.preprocessing.combine:main"

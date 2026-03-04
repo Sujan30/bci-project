@@ -8,7 +8,14 @@ import uuid
 from datetime import datetime
 from typing import List
 
-from fastapi import FastAPI, File, HTTPException, BackgroundTasks, UploadFile
+import time
+
+import numpy as np
+from fastapi import FastAPI, File, HTTPException, BackgroundTasks, UploadFile, WebSocket, WebSocketDisconnect
+
+from sleep_bci.model.artifacts import load_bundle
+from sleep_bci.features.bandpower import extract_features_epoch
+from sleep_bci.config import settings
 
 from sleep_bci.api.schemas import (
     PreprocessStatusResponse,
@@ -294,6 +301,21 @@ def get_preprocessing_status(job_id: str):
     return response
 
 training_data = {}
+MODEL_CACHE: dict = {}
+
+
+def _resolve_model_path(model_id: str) -> str:
+    models_dir = os.path.dirname(os.path.abspath(settings.model_path))
+    return os.path.join(models_dir, f"{model_id}.joblib")
+
+
+def _load_model_cached(model_id: str):
+    if model_id not in MODEL_CACHE:
+        path = _resolve_model_path(model_id)
+        if not os.path.exists(path):
+            raise FileNotFoundError(path)
+        MODEL_CACHE[model_id] = load_bundle(path)
+    return MODEL_CACHE[model_id]
 
 
 #helper function for background task for training
@@ -397,6 +419,69 @@ def train_model(request: TrainConfigRequest, background_task: BackgroundTasks):
         status_url=f"/train/{train_id}"
     )
     
+
+
+@app.websocket("/v1/stream")
+async def stream_inference(websocket: WebSocket, model_id: str):
+    await websocket.accept()
+    logger.info("WS /v1/stream connected: model_id=%s", model_id)
+
+    try:
+        bundle = _load_model_cached(model_id)
+    except FileNotFoundError as e:
+        await websocket.send_json({
+            "error": "MODEL_NOT_FOUND",
+            "message": f"Model '{model_id}' not found at {e}"
+        })
+        await websocket.close(code=1008)
+        return
+
+    expected_len = int(bundle.fs * 30)  # 3000 at 100 Hz
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            epoch_data = data.get("epoch")
+            timestamp = data.get("timestamp")
+
+            if not isinstance(epoch_data, list) or len(epoch_data) != expected_len:
+                got = len(epoch_data) if isinstance(epoch_data, list) else 0
+                await websocket.send_json({
+                    "error": "INVALID_EPOCH_LENGTH",
+                    "message": f"Expected {expected_len} samples, got {got}"
+                })
+                continue
+
+            t0 = time.perf_counter()
+            try:
+                epoch_np = np.array(epoch_data, dtype=np.float32)
+                features = extract_features_epoch(epoch_np, fs=bundle.fs).reshape(1, -1)
+                proba = bundle.pipeline.predict_proba(features)[0]
+                label = int(np.argmax(proba))
+                confidence = float(np.max(proba))
+                stage = bundle.label_map[label]
+                latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+
+                response = {
+                    "stage": stage,
+                    "label": label,
+                    "confidence": round(confidence, 4),
+                    "latency_ms": latency_ms,
+                }
+                if timestamp is not None:
+                    response["timestamp"] = timestamp
+
+                await websocket.send_json(response)
+
+            except Exception as e:
+                logger.exception("Prediction failed for model_id=%s", model_id)
+                await websocket.send_json({
+                    "error": "PREDICTION_FAILED",
+                    "message": str(e)
+                })
+
+    except WebSocketDisconnect:
+        logger.info("WS /v1/stream disconnected: model_id=%s", model_id)
 
 
 @app.get("/training/{train_id}")
