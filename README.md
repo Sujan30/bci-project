@@ -159,7 +159,53 @@ docker-compose --profile dev up dev
 
 ---
 
-### Option 2: Local Python Environment
+### Option 2: Local Dev with `start.sh` (Recommended for local development)
+
+**Prerequisites**: Python 3.11+, pip, Redis (optional but recommended)
+
+**1. Set up your environment**:
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+pip install -e .
+```
+
+**2. Configure `.env`** (copy from the example and edit as needed):
+```bash
+cp .env.example .env  # or create manually
+```
+
+Minimal `.env`:
+```env
+REDIS_URL=redis://localhost:6379
+PORT=8000
+HOST=0.0.0.0
+```
+
+> All fields have defaults — the server starts without any `.env`. Only `REDIS_URL` is worth setting; without it, jobs fall back to in-memory (lost on restart).
+
+**3. Run the startup script**:
+```bash
+./start.sh
+```
+
+That's it. `start.sh` will:
+- Load your `.env` and validate `REDIS_URL`
+- Start `redis-server` automatically if it isn't already running
+- Launch `uvicorn` with hot-reload on the configured host and port
+
+**4. Verify everything is wired up**:
+```bash
+curl http://localhost:8000/health
+# {"status": "we are flowing!", "job_store_backend": "redis"}
+```
+
+`job_store_backend` should say `"redis"` (not `"memory"`) to confirm Redis is connected.
+
+---
+
+### Option 3: Local Python Environment (manual)
 
 **Prerequisites**: Python 3.11+, pip
 
@@ -169,14 +215,18 @@ python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
 # 2. Install package
+pip install -r requirements.txt
 pip install -e .
 
-# 3. Run pipeline
+# 3. Start Redis (optional, for persistent job store)
+redis-server --daemonize yes
+
+# 4. Run pipeline
 sleepbci-preprocess --raw_dir data/raw --out_dir data/processed
 sleepbci-train --processed_dir data/processed --model_out models/lda.joblib --n_splits 2
 sleepbci-serve --model_path models/lda.joblib
 
-# 4. Test API
+# 5. Test API
 curl http://localhost:8000/
 ```
 
@@ -404,7 +454,7 @@ See `.github/workflows/ci.yml` for details.
 - [x] CI/CD pipeline
 
 ### 🚧 In Progress
-- [ ] Redis job persistence
+- [x] Redis job persistence
 - [ ] Live LSL stream integration
 - [ ] Web dashboard (real-time visualization)
 
