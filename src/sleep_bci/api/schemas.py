@@ -207,6 +207,10 @@ class TrainingStatusResponse(BaseModel):
         description="Cross-validation results from LDA training (available once training succeeds)."
     )
 
+class ModelResponse(BaseModel):
+    models: List[str]
+    num_models: int
+
 
 
 

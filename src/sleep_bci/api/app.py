@@ -29,7 +29,8 @@ from sleep_bci.api.schemas import (
     UploadResponse,
     TrainConfigRequest,
     TrainingJobCreated,
-    TrainingStatusResponse
+    TrainingStatusResponse,
+    ModelResponse
 )
 from sleep_bci.preprocessing.core import (
     PreprocessSpec,
@@ -366,6 +367,23 @@ def update_training(
         logger.error("Training %s failed: %s", train_id, e)
         
 
+@app.get("/v1/models")
+def models_list():
+    try:
+        models_dir = os.path.dirname(os.path.abspath(settings.model_path))
+        things = os.listdir(models_dir)
+        models = []
+
+        for thing in things:
+            if thing.endswith('.joblib'):
+                models.append(thing.removesuffix('.joblib'))
+        
+    
+        return ModelResponse(models=models, num_models=len(models))
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Models directory not found: {models_dir}. Error: {e}")
+    
+    
     
 
 @app.post("/v1/train")
