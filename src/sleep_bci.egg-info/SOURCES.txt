@@ -18,4 +18,7 @@ src/sleep_bci/preprocessing/combine.py
 src/sleep_bci/preprocessing/core.py
 src/sleep_bci/preprocessing/run_preprocess.py
 src/sleep_bci/stream/simulate.py
+tests/test_api.py
 tests/test_features.py
+tests/test_preprocessing.py
+tests/test_train.py

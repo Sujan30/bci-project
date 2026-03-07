@@ -138,7 +138,7 @@ JOBS = {}
 
 
 def _build_spec(config: PreprocessingConfig) -> PreprocessSpec:
-    """Map API PreprocessingConfig to core PreprocessSpec."""
+    """Map API PreprocessingConfig to core PreprocessSpec schema."""
     return PreprocessSpec(
         channel=config.channel,
         epoch_sec=config.epochs,
@@ -278,7 +278,8 @@ def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks
     )
 
     return response
-
+@app.get("/health")
+def health(): return {"status": "we are flowing!"}
 
 @app.get("/v1/preprocess/{job_id}")
 def get_preprocessing_status(job_id: str):

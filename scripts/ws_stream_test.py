@@ -43,8 +43,9 @@ def train_model():
     X, y, ids = load_nightly_npz("data/processed")
     bundle, results = train_lda(X, y, ids, fs=100.0, n_splits=2)
     save_bundle("models/lda_pipeline.joblib", bundle)
-    acc = results.get("mean_balanced_accuracy", "?")
-    print(f"Model saved to models/lda_pipeline.joblib  (CV balanced_acc={acc:.3f})")
+    acc = results.get("mean_balanced_accuracy")
+    acc_str = f"{acc:.3f}" if acc is not None else "?"
+    print(f"Model saved to models/lda_pipeline.joblib  (CV balanced_acc={acc_str})")
 
 
 async def stream(realtime: bool):

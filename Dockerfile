@@ -22,10 +22,8 @@ RUN apt-get update && \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy wheels from builder and install
+# Copy wheels from builder
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir /wheels/*.whl && \
-    rm -rf /wheels
 
 # Set working directory
 WORKDIR /app
@@ -34,8 +32,9 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY src/ ./src/
 
-# Install the package in editable mode
-RUN pip install --no-cache-dir -e .
+# Install package and all dependencies using local wheels, falling back to PyPI
+RUN pip install --no-cache-dir --find-links /wheels -e . && \
+    rm -rf /wheels
 
 # Create directories for data and models
 RUN mkdir -p /app/data/raw /app/data/processed /app/data/results /app/models

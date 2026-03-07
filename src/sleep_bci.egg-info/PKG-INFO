@@ -12,6 +12,7 @@ Requires-Dist: mne
 Requires-Dist: fastapi
 Requires-Dist: uvicorn
 Requires-Dist: pydantic
+Requires-Dist: pydantic-settings
 Requires-Dist: tqdm
 Requires-Dist: python-multipart
 Provides-Extra: dev

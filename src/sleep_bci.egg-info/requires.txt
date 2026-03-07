@@ -6,6 +6,7 @@ mne
 fastapi
 uvicorn
 pydantic
+pydantic-settings
 tqdm
 python-multipart
 

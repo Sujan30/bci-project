@@ -17,3 +17,4 @@ models/**
 venv/
 claude_docs/
 data/results
+claude-docs/
