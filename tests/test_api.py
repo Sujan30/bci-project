@@ -24,7 +24,7 @@ def test_root(client):
 
 def test_upload_rejects_non_edf(client):
     response = client.post(
-        "/upload",
+        "/v1/upload",
         files=[("files", ("data.txt", BytesIO(b"bad"), "text/plain"))],
     )
     assert response.status_code == 400
@@ -33,7 +33,7 @@ def test_upload_rejects_non_edf(client):
 
 def test_upload_missing_psg(client):
     response = client.post(
-        "/upload",
+        "/v1/upload",
         files=[("files", ("SC4001E0-PSG-Hypnogram.edf", BytesIO(b"fake"), "application/octet-stream"))],
     )
     assert response.status_code == 400
@@ -42,7 +42,7 @@ def test_upload_missing_psg(client):
 
 def test_upload_missing_hypnogram(client):
     response = client.post(
-        "/upload",
+        "/v1/upload",
         files=[("files", ("SC4001E0-PSG.edf", BytesIO(b"fake"), "application/octet-stream"))],
     )
     assert response.status_code == 400
@@ -58,7 +58,7 @@ def test_upload_valid_pair(client, tmp_path):
 
     with patch("sleep_bci.api.app.discover_and_validate", return_value=fake_pairs):
         response = client.post(
-            "/upload",
+            "/v1/upload",
             files=[
                 ("files", (psg_name, BytesIO(b"fake-psg"), "application/octet-stream")),
                 ("files", (hyp_name, BytesIO(b"fake-hyp"), "application/octet-stream")),
