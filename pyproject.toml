@@ -20,6 +20,7 @@ dependencies = [
   "pydantic-settings",
   "tqdm",
   "python-multipart",
+  "redis",
 ]
 
 [project.optional-dependencies]

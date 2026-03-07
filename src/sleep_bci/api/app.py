@@ -16,6 +16,7 @@ from fastapi import FastAPI, File, HTTPException, BackgroundTasks, UploadFile, W
 from sleep_bci.model.artifacts import load_bundle
 from sleep_bci.features.bandpower import extract_features_epoch
 from sleep_bci.config import settings
+from sleep_bci.api.job_store import JobStore
 
 from sleep_bci.api.schemas import (
     PreprocessStatusResponse,
@@ -135,7 +136,7 @@ async def upload_edf_files(files: List[UploadFile] = File(...)):
         raise
 
 
-JOBS = {}
+job_store = JobStore(settings.redis_url)
 
 
 def _build_spec(config: PreprocessingConfig) -> PreprocessSpec:
@@ -155,16 +156,19 @@ def run_preprocess_job(
     spec: PreprocessSpec,
     combine: bool,
 ):
-    job = JOBS[job_id]
+    job = job_store.get(job_id)
     job["status"] = JobStatus.running
     job["started_at"] = datetime.now()
     job["message"] = "Preprocessing started"
     job["progress"] = 0
+    job_store.set(job_id, job)
 
     def on_progress(idx: int, total: int, night_id: str) -> None:
         scale = 90 if combine else 100
-        job["progress"] = (idx + 1) / total * scale
-        job["message"] = f"Processing night {idx + 1}/{total} ({night_id})"
+        _job = job_store.get(job_id)
+        _job["progress"] = (idx + 1) / total * scale
+        _job["message"] = f"Processing night {idx + 1}/{total} ({night_id})"
+        job_store.set(job_id, _job)
 
     try:
         kept, skipped = preprocess_sleep_edf(
@@ -172,25 +176,31 @@ def run_preprocess_job(
         )
 
         if combine:
-            job["progress"] = 90
-            job["message"] = "Combining nights..."
+            _job = job_store.get(job_id)
+            _job["progress"] = 90
+            _job["message"] = "Combining nights..."
+            job_store.set(job_id, _job)
             combined_path = os.path.join(out_dir, "sleep_edf_all.npz")
             combine_nights(out_dir, combined_path)
 
-        job["status"] = JobStatus.succeeded
-        job["progress"] = 100
-        job["message"] = f"Done. Kept {kept}, skipped {skipped}."
-        job["finished_at"] = datetime.now()
-        job["output_location"] = out_dir
+        _job = job_store.get(job_id)
+        _job["status"] = JobStatus.succeeded
+        _job["progress"] = 100
+        _job["message"] = f"Done. Kept {kept}, skipped {skipped}."
+        _job["finished_at"] = datetime.now()
+        _job["output_location"] = out_dir
+        job_store.set(job_id, _job)
     except Exception as e:
-        job["status"] = JobStatus.failed
-        job["finished_at"] = datetime.now()
-        job["error"] = ErrorDetail(
+        _job = job_store.get(job_id)
+        _job["status"] = JobStatus.failed
+        _job["finished_at"] = datetime.now()
+        _job["error"] = ErrorDetail(
             code="PREPROCESSING_ERROR",
             message=str(e),
             details={"traceback": traceback.format_exc()},
         )
-        job["message"] = f"Failed: {e}"
+        _job["message"] = f"Failed: {e}"
+        job_store.set(job_id, _job)
     finally:
         # Clean up temp upload directories after processing
         upload_dir_prefix = os.path.join(tempfile.gettempdir(), UPLOAD_PREFIX)
@@ -258,8 +268,8 @@ def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks
     # 6. Create job id
     job_id = str(uuid.uuid4())
 
-    # 7. Add job to the dictionary of jobs
-    JOBS[job_id] = {
+    # 7. Add job to the store
+    job_store.set(job_id, {
         "status": JobStatus.queued,
         "created_at": datetime.now(),
         "progress": 0,
@@ -270,7 +280,7 @@ def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks
         "message": None,
         "output_location": out_dir,
         "error": None,
-    }
+    })
 
     background_task.add_task(run_preprocess_job, job_id, raw_dir, out_dir, spec, combine)
 
@@ -280,15 +290,15 @@ def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks
 
     return response
 @app.get("/health")
-def health(): return {"status": "we are flowing!"}
+def health(): return {"status": "we are flowing!", "job_store_backend": job_store.backend}
 
 @app.get("/v1/preprocess/{job_id}")
 def get_preprocessing_status(job_id: str):
 
-    if job_id not in JOBS:
+    if not job_store.exists(job_id):
         raise HTTPException(status_code=404, detail="job_id not found")
 
-    job = JOBS[job_id]
+    job = job_store.get(job_id)
     response = PreprocessStatusResponse(
         job_id=job_id,
         status=job["status"],
@@ -302,7 +312,6 @@ def get_preprocessing_status(job_id: str):
     )
     return response
 
-training_data = {}
 MODEL_CACHE: dict = {}
 
 
@@ -326,14 +335,14 @@ def update_training(
         train_id: str,
         npz_directory: str,
         model_out: str,
-        fs: float, 
-        n_splits: int
-
+        fs: float,
+        n_splits: int,
 ):
-    job = training_data[train_id]
+    job = job_store.get(train_id)
     job["status"] = JobStatus.running
     job["started_at"] = datetime.now()
     job["message"] = f"now working on training {train_id}"
+    job_store.set(train_id, job)
     logger.info("Training %s started — npz_dir=%s, model_out=%s", train_id, npz_directory, model_out)
 
     try:
@@ -348,22 +357,26 @@ def update_training(
         with open(results_path, "w") as f:
             json.dump(results, f, indent=2)
         logger.info("Training %s: saved results to %s", train_id, results_path)
-        job["status"] = JobStatus.succeeded
-        job['progress'] = 100
-        job['finished_at'] = datetime.now()
-        job['output_location'] = out_dir
-        job['message'] = "Training complete"
-        job['results'] = results
+        _job = job_store.get(train_id)
+        _job["status"] = JobStatus.succeeded
+        _job["progress"] = 100
+        _job["finished_at"] = datetime.now()
+        _job["output_location"] = out_dir
+        _job["message"] = "Training complete"
+        _job["results"] = results
+        job_store.set(train_id, _job)
         logger.info("Training %s succeeded", train_id)
     except Exception as e:
-        job["status"] = JobStatus.failed
-        job["finished_at"] = datetime.now()
-        job["error"] = ErrorDetail(
+        _job = job_store.get(train_id)
+        _job["status"] = JobStatus.failed
+        _job["finished_at"] = datetime.now()
+        _job["error"] = ErrorDetail(
             code="TRAINING_ERROR",
             message=str(e),
             details={"traceback": traceback.format_exc()},
         )
-        job["message"] = f"Failed: {e}"
+        _job["message"] = f"Failed: {e}"
+        job_store.set(train_id, _job)
         logger.error("Training %s failed: %s", train_id, e)
         
 
@@ -415,7 +428,7 @@ def train_model(request: TrainConfigRequest, background_task: BackgroundTasks):
     
     train_id = str(uuid.uuid4())
 
-    training_data[train_id]= {
+    job_store.set(train_id, {
         "npz_dir": request.npz_dir,
         "status": JobStatus.queued,
         "model_out": model_out,
@@ -428,7 +441,7 @@ def train_model(request: TrainConfigRequest, background_task: BackgroundTasks):
         "message": None,
         "output_location": model_out,
         "error": None,
-    }
+    })
     
     background_task.add_task(update_training, train_id, request.npz_dir, model_out, request.fs, request.n_splits)
 
@@ -505,9 +518,9 @@ async def stream_inference(websocket: WebSocket, model_id: str):
 
 @app.get("/v1/train/{train_id}")
 def get_training_status(train_id: str):
-    if train_id not in training_data:
+    if not job_store.exists(train_id):
         raise HTTPException(status_code=404, detail="train_id not found")
-    job = training_data[train_id]
+    job = job_store.get(train_id)
     return TrainingStatusResponse(
         npz_dir=job["npz_dir"],
         job_id=train_id,
