@@ -2,17 +2,15 @@ import pytest
 import numpy as np
 import mne
 from fastapi.testclient import TestClient
-from sleep_bci.api.app import app, JOBS, training_data, MODEL_CACHE
+from sleep_bci.api.app import app, job_store, MODEL_CACHE
 
 
 @pytest.fixture(autouse=True)
 def clear_job_state():
-    """Reset shared job dicts between tests to prevent state leakage."""
-    JOBS.clear()
-    training_data.clear()
+    """Reset job store between tests to prevent state leakage."""
+    job_store.clear()
     yield
-    JOBS.clear()
-    training_data.clear()
+    job_store.clear()
 
 
 @pytest.fixture(autouse=True)
