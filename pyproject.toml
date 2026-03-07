@@ -28,6 +28,7 @@ dev = [
   "pytest-cov",
   "pytest-asyncio",
   "httpx",
+  "websockets",
   "ruff",
   "mypy",
 ]
@@ -38,6 +39,9 @@ sleepbci-combine = "sleep_bci.preprocessing.combine:main"
 sleepbci-train = "sleep_bci.model.train:main"
 sleepbci-serve = "sleep_bci.api.main:main"
 sleepbci-simulate = "sleep_bci.stream.simulate:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
