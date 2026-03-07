@@ -51,7 +51,7 @@ jobs:
           echo "$RESPONSE" | grep -q '"we are flowing!"'
 
       - name: Verify models endpoint
-        run: curl -sf http://localhost:8000/models
+        run: curl -sf http://localhost:8000/v1/models
 
       - name: Tear down
         if: always()
