@@ -17,8 +17,19 @@ dependencies = [
   "fastapi",
   "uvicorn",
   "pydantic",
+  "pydantic-settings",
   "tqdm",
   "python-multipart",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "pytest-cov",
+  "pytest-asyncio",
+  "httpx",
+  "ruff",
+  "mypy",
 ]
 
 [project.scripts]

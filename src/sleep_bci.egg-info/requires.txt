@@ -6,4 +6,14 @@ mne
 fastapi
 uvicorn
 pydantic
+pydantic-settings
 tqdm
+python-multipart
+
+[dev]
+pytest>=7.0
+pytest-cov
+pytest-asyncio
+httpx
+ruff
+mypy
