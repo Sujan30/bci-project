@@ -66,7 +66,7 @@ def read_root():
     return {"message": "Hello, World!"}
 
 
-@app.post("/upload", response_model=UploadResponse)
+@app.post("/v1/upload", response_model=UploadResponse)
 async def upload_edf_files(files: List[UploadFile] = File(...)):
     # 1. Validate all filenames end with .edf
     for f in files:
@@ -368,7 +368,7 @@ def update_training(
 
     
 
-@app.post("/train")
+@app.post("/v1/train")
 def train_model(request: TrainConfigRequest, background_task: BackgroundTasks):
     
     # step 1. validate
@@ -415,9 +415,9 @@ def train_model(request: TrainConfigRequest, background_task: BackgroundTasks):
     background_task.add_task(update_training, train_id, request.npz_dir, model_out, request.fs, request.n_splits)
 
     return TrainingJobCreated(
-        training_id=train_id, 
-        status = JobStatus.queued,
-        status_url=f"/train/{train_id}"
+        job_id=train_id,
+        status=JobStatus.queued,
+        status_url=f"/v1/train/{train_id}"
     )
     
 
@@ -485,14 +485,14 @@ async def stream_inference(websocket: WebSocket, model_id: str):
         logger.info("WS /v1/stream disconnected: model_id=%s", model_id)
 
 
-@app.get("/training/{train_id}")
+@app.get("/v1/train/{train_id}")
 def get_training_status(train_id: str):
     if train_id not in training_data:
         raise HTTPException(status_code=404, detail="train_id not found")
     job = training_data[train_id]
     return TrainingStatusResponse(
         npz_dir=job["npz_dir"],
-        training_id=train_id,
+        job_id=train_id,
         status=job['status'],
         created_at=job['created_at'],
         started_at=job['started_at'],
