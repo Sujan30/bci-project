@@ -179,7 +179,7 @@ def test_get_preprocess_status_found(client, tmp_path):
 
 def test_train_missing_npz_dir(client):
     response = client.post(
-        "/train",
+        "/v1/train",
         json={"npz_dir": "/nonexistent/npz/dir", "n_splits": 2},
     )
     assert response.status_code == 400
@@ -188,7 +188,7 @@ def test_train_missing_npz_dir(client):
 
 def test_train_no_npz_files(client, tmp_path):
     response = client.post(
-        "/train",
+        "/v1/train",
         json={"npz_dir": str(tmp_path), "n_splits": 2},
     )
     assert response.status_code == 400
@@ -198,7 +198,7 @@ def test_train_no_npz_files(client, tmp_path):
 def test_train_n_splits_too_large(client, sample_npz_dir):
     """n_splits > number of nights should be rejected."""
     response = client.post(
-        "/train",
+        "/v1/train",
         json={"npz_dir": sample_npz_dir, "n_splits": 100},
     )
     assert response.status_code == 400
@@ -208,36 +208,36 @@ def test_train_n_splits_too_large(client, sample_npz_dir):
 def test_train_creates_job(client, sample_npz_dir):
     with patch("sleep_bci.api.app.update_training"):
         response = client.post(
-            "/train",
+            "/v1/train",
             json={"npz_dir": sample_npz_dir, "n_splits": 2},
         )
 
     assert response.status_code == 200
     body = response.json()
-    assert "training_id" in body
+    assert "job_id" in body
     assert body["status"] == JobStatus.queued
 
 
 # ---------------------------------------------------------------------------
-# /training/{train_id}
+# /v1/train/{job_id}
 # ---------------------------------------------------------------------------
 
 def test_get_training_status_not_found(client):
-    response = client.get("/training/does-not-exist")
+    response = client.get("/v1/train/does-not-exist")
     assert response.status_code == 404
 
 
 def test_get_training_status_found(client, sample_npz_dir):
     with patch("sleep_bci.api.app.update_training"):
         create_resp = client.post(
-            "/train",
+            "/v1/train",
             json={"npz_dir": sample_npz_dir, "n_splits": 2},
         )
 
-    train_id = create_resp.json()["training_id"]
-    status_resp = client.get(f"/training/{train_id}")
+    job_id = create_resp.json()["job_id"]
+    status_resp = client.get(f"/v1/train/{job_id}")
     assert status_resp.status_code == 200
-    assert status_resp.json()["training_id"] == train_id
+    assert status_resp.json()["job_id"] == job_id
 
 
 # ---------------------------------------------------------------------------

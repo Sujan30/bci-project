@@ -179,13 +179,13 @@ class TrainConfigRequest(BaseModel):
         return v
 
 class TrainingJobCreated(BaseModel):
-    training_id: str
+    job_id: str
     status: JobStatus
     status_url: str
 
 class TrainingStatusResponse(BaseModel):
     npz_dir: str
-    training_id: str
+    job_id: str
     status: JobStatus
    
     created_at: datetime

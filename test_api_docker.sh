@@ -58,10 +58,10 @@ echo "Testing Training Endpoints"
 echo "==================================="
 echo ""
 
-# Test 4: POST /train - Create a training job
-echo "Test 4: POST /train - Create training job"
+# Test 4: POST /v1/train - Create a training job
+echo "Test 4: POST /v1/train - Create training job"
 # Note: Training requires preprocessed .npz files with at least n_splits nights
-TRAIN_RESPONSE=$(curl -s -X POST http://localhost:8000/train \
+TRAIN_RESPONSE=$(curl -s -X POST http://localhost:8000/v1/train \
   -H "Content-Type: application/json" \
   -d '{
     "npz_dir": "/app/data/processed",
@@ -73,27 +73,27 @@ TRAIN_RESPONSE=$(curl -s -X POST http://localhost:8000/train \
 echo "$TRAIN_RESPONSE" | jq .
 
 # Check if training job was created successfully
-if echo "$TRAIN_RESPONSE" | jq -e '.training_id' > /dev/null 2>&1; then
-    TRAIN_ID=$(echo "$TRAIN_RESPONSE" | jq -r .training_id)
+if echo "$TRAIN_RESPONSE" | jq -e '.job_id' > /dev/null 2>&1; then
+    TRAIN_ID=$(echo "$TRAIN_RESPONSE" | jq -r .job_id)
     echo ""
     echo "Training job created with ID: $TRAIN_ID"
     echo ""
 
-    # Test 5: GET /training/{train_id} - Check training status
-    echo "Test 5: GET /training/${TRAIN_ID} - Check training status (initial)"
+    # Test 5: GET /v1/train/{job_id} - Check training status
+    echo "Test 5: GET /v1/train/${TRAIN_ID} - Check training status (initial)"
     sleep 2
-    curl -s "http://localhost:8000/training/${TRAIN_ID}" | jq .
+    curl -s "http://localhost:8000/v1/train/${TRAIN_ID}" | jq .
     echo ""
 
     # Wait and check training progress
     echo "Waiting 5 seconds to check training progress..."
     sleep 5
-    curl -s "http://localhost:8000/training/${TRAIN_ID}" | jq .
+    curl -s "http://localhost:8000/v1/train/${TRAIN_ID}" | jq .
     echo ""
 
     echo "Waiting 10 more seconds to check if training completes..."
     sleep 10
-    TRAIN_STATUS=$(curl -s "http://localhost:8000/training/${TRAIN_ID}")
+    TRAIN_STATUS=$(curl -s "http://localhost:8000/v1/train/${TRAIN_ID}")
     echo "$TRAIN_STATUS" | jq .
     echo ""
 
