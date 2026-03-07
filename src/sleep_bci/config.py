@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     logger: str = "INFO"
     redis_url: str | None = None
-    model_path: str = "models/lda_pipeline.joblib"
+    model_path: str = "/Users/sujannandikolsunilkumar/bci project/bci-project/models/lda_pipeline.joblib"
     max_upload_size:  int = 100 * 1024 * 1024  # 100MB
 
     class Config: 
