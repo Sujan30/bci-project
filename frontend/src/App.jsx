@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { API } from './constants';
 import Header        from './components/Header';
 import PipelineNav   from './components/PipelineNav';
@@ -7,9 +8,10 @@ import PreprocessPane from './components/PreprocessPane';
 import TrainPane     from './components/TrainPane';
 import StreamPane    from './components/StreamPane';
 import Sidebar       from './components/Sidebar';
+import LandingPage   from './pages/LandingPage';
 import styles from './App.module.css';
 
-export default function App() {
+function PipelineApp() {
   const [health,        setHealth]        = useState('checking');
   const [step,          setStep]          = useState(0);
   const [uploadResult,  setUploadResult]  = useState(null);
@@ -70,5 +72,14 @@ export default function App() {
         />
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/"    element={<LandingPage />} />
+      <Route path="/app" element={<PipelineApp />} />
+    </Routes>
   );
 }
