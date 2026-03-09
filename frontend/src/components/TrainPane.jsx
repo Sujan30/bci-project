@@ -6,7 +6,7 @@ import styles from './FormPane.module.css';
 
 const DEFAULT = { npz_dir: '', model_out: '', fs: 100, n_splits: 2 };
 
-export default function TrainPane({ onTrained }) {
+export default function TrainPane({ onTrained, npzDir }) {
   const [cfg,     setCfg]     = useState(DEFAULT);
   const [job,     setJob]     = useState(null);
   const [loading, setLoading] = useState(false);
@@ -31,7 +31,9 @@ export default function TrainPane({ onTrained }) {
   async function submit() {
     setLoading(true); setError(null); stopPoll();
     const body = {
-      npz_dir:   cfg.npz_dir,
+      ...(npzDir
+        ? { npz_dir: npzDir }
+        : { npz_dir: cfg.npz_dir }),
       model_out: cfg.model_out || null,
       fs:        parseFloat(cfg.fs),
       n_splits:  parseInt(cfg.n_splits),
@@ -60,13 +62,21 @@ export default function TrainPane({ onTrained }) {
       <div className={s.card}>
         <div className={s.cardTitle}>Train LDA Classifier</div>
 
-        <div className={s.grid2}>
-          <div className={`${s.field} ${s.full}`}>
-            <label className={s.label}>NPZ Directory</label>
-            <input type="text" value={cfg.npz_dir}
-              onChange={e => set('npz_dir', e.target.value)}
-              placeholder="/tmp/preprocessed" />
+        {npzDir && (
+          <div className={s.sessionBanner}>
+            Using preprocessed output — NPZ directory resolved automatically.
           </div>
+        )}
+
+        <div className={s.grid2}>
+          {!npzDir && (
+            <div className={`${s.field} ${s.full}`}>
+              <label className={s.label}>NPZ Directory</label>
+              <input type="text" value={cfg.npz_dir}
+                onChange={e => set('npz_dir', e.target.value)}
+                placeholder="/tmp/preprocessed" />
+            </div>
+          )}
           <div className={`${s.field} ${s.full}`}>
             <label className={s.label}>
               Model Output Path <span className={s.labelNote}>optional — blank = auto</span>
@@ -92,7 +102,7 @@ export default function TrainPane({ onTrained }) {
         <button
           className={`${s.btn} ${s.btnPrimary}`}
           onClick={submit}
-          disabled={!cfg.npz_dir || loading}
+          disabled={(!npzDir && !cfg.npz_dir) || loading}
         >
           {loading && <span className={s.spinner} />}
           {loading ? 'Submitting…' : 'Start Training'}

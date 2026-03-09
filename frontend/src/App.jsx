@@ -10,9 +10,11 @@ import Sidebar       from './components/Sidebar';
 import styles from './App.module.css';
 
 export default function App() {
-  const [health,   setHealth]   = useState('checking');
-  const [step,     setStep]     = useState(0);
-  const [models,   setModels]   = useState([]);
+  const [health,        setHealth]        = useState('checking');
+  const [step,          setStep]          = useState(0);
+  const [uploadResult,  setUploadResult]  = useState(null);
+  const [preprocessDir, setPreprocessDir] = useState(null);
+  const [models,        setModels]        = useState([]);
   const [modLoad,  setModLoad]  = useState(false);
   const [selected, setSelected] = useState('');
 
@@ -53,9 +55,9 @@ export default function App() {
         <div className={styles.pipeline}>
           <PipelineNav active={step} onChange={setStep} />
 
-          {step === 0 && <UploadPane    onDone={() => setStep(1)} />}
-          {step === 1 && <PreprocessPane />}
-          {step === 2 && <TrainPane     onTrained={fetchModels} />}
+          {step === 0 && <UploadPane    onDone={(d) => { setUploadResult(d); setStep(1); }} />}
+          {step === 1 && <PreprocessPane sessionId={uploadResult?.session_id} onDone={(dir) => { setPreprocessDir(dir); setStep(2); }} />}
+          {step === 2 && <TrainPane     npzDir={preprocessDir} onTrained={fetchModels} />}
           {step === 3 && <StreamPane    models={models} />}
         </div>
 

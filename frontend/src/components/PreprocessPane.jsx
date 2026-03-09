@@ -14,7 +14,7 @@ const DEFAULT = {
   dry_run: false,
 };
 
-export default function PreprocessPane() {
+export default function PreprocessPane({ sessionId, onDone }) {
   const [cfg,     setCfg]     = useState(DEFAULT);
   const [job,     setJob]     = useState(null);
   const [loading, setLoading] = useState(false);
@@ -29,14 +29,19 @@ export default function PreprocessPane() {
       const r = await fetch(`${API}/v1/preprocess/${id}`);
       const d = await r.json();
       setJob(d);
-      if (d.status === 'succeeded' || d.status === 'failed') stopPoll();
+      if (d.status === 'succeeded' || d.status === 'failed') {
+        stopPoll();
+        if (d.status === 'succeeded') onDone?.(d.output_location);
+      }
     } catch (_) {}
   }
 
   async function submit() {
     setLoading(true); setError(null); stopPoll();
     const body = {
-      dataset: { type: 'local_edf', raw_dir: cfg.raw_dir },
+      ...(sessionId
+        ? { session_id: sessionId }
+        : { dataset: { type: 'local_edf', raw_dir: cfg.raw_dir } }),
       output:  { out_dir: cfg.out_dir || null, combine: cfg.combine },
       preprocessing_config: {
         channel:  cfg.channel,
@@ -75,13 +80,21 @@ export default function PreprocessPane() {
       <div className={s.card}>
         <div className={s.cardTitle}>Preprocess EDF Data</div>
 
-        <div className={s.grid2}>
-          <div className={`${s.field} ${s.full}`}>
-            <label className={s.label}>Raw EDF Directory</label>
-            <input type="text" value={cfg.raw_dir}
-              onChange={e => set('raw_dir', e.target.value)}
-              placeholder="/data/raw/sleep-edf" />
+        {sessionId && (
+          <div className={s.sessionBanner}>
+            Using uploaded session — raw directory resolved automatically.
           </div>
+        )}
+
+        <div className={s.grid2}>
+          {!sessionId && (
+            <div className={`${s.field} ${s.full}`}>
+              <label className={s.label}>Raw EDF Directory</label>
+              <input type="text" value={cfg.raw_dir}
+                onChange={e => set('raw_dir', e.target.value)}
+                placeholder="/data/raw/sleep-edf" />
+            </div>
+          )}
           <div className={`${s.field} ${s.full}`}>
             <label className={s.label}>
               Output Directory <span className={s.labelNote}>(blank = auto-generated)</span>
@@ -139,7 +152,7 @@ export default function PreprocessPane() {
         <button
           className={`${s.btn} ${s.btnPrimary}`}
           onClick={submit}
-          disabled={!cfg.raw_dir || loading}
+          disabled={(!sessionId && !cfg.raw_dir) || loading}
         >
           {loading && <span className={s.spinner} />}
           {loading ? 'Submitting…' : cfg.dry_run ? 'Validate Only' : 'Run Preprocessing'}
