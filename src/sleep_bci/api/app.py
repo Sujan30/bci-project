@@ -12,6 +12,7 @@ import time
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, BackgroundTasks, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 from sleep_bci.model.artifacts import load_bundle
 from sleep_bci.features.bandpower import extract_features_epoch
@@ -46,8 +47,17 @@ logger = logging.getLogger(__name__)
 
 UPLOAD_PREFIX = "sleep-bci-upload-"
 OUTPUT_PREFIX = "sleep-bci-output-"
+SESSION_KEY_PREFIX = "session:"
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 """""
@@ -118,8 +128,11 @@ async def upload_edf_files(files: List[UploadFile] = File(...)):
             for psg, hyp in pairs
         ]
 
+        session_id = str(uuid.uuid4())
+        job_store.set(f"{SESSION_KEY_PREFIX}{session_id}", {"raw_dir": tmp_dir})
+
         return UploadResponse(
-            session_id=str(uuid.uuid4()),
+            session_id=session_id,
             raw_dir=tmp_dir,
             matched_pairs=len(pairs),
             files=file_info,
@@ -155,6 +168,7 @@ def run_preprocess_job(
     out_dir: str,
     spec: PreprocessSpec,
     combine: bool,
+    session_id: str = None,
 ):
     job = job_store.get(job_id)
     job["status"] = JobStatus.running
@@ -190,6 +204,11 @@ def run_preprocess_job(
         _job["finished_at"] = datetime.now()
         _job["output_location"] = out_dir
         job_store.set(job_id, _job)
+
+        if session_id:
+            session_data = job_store.get(f"{SESSION_KEY_PREFIX}{session_id}") or {}
+            session_data["npz_dir"] = out_dir
+            job_store.set(f"{SESSION_KEY_PREFIX}{session_id}", session_data)
     except Exception as e:
         _job = job_store.get(job_id)
         _job["status"] = JobStatus.failed
@@ -215,7 +234,17 @@ def run_preprocess_job(
 #pre process the dataset, and return a job id so we can keep track of it
 @app.post("/v1/preprocess")
 def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks):
-    raw_dir = request.dataset.raw_dir
+    # Resolve raw_dir: prefer session_id lookup, fall back to explicit dataset.raw_dir
+    if request.session_id:
+        session_data = job_store.get(f"{SESSION_KEY_PREFIX}{request.session_id}")
+        if session_data is None:
+            raise HTTPException(status_code=404, detail=f"Session '{request.session_id}' not found. Upload files first via /v1/upload.")
+        raw_dir = session_data["raw_dir"]
+    elif request.dataset:
+        raw_dir = request.dataset.raw_dir
+    else:
+        raise HTTPException(status_code=400, detail="Provide either 'session_id' (from /v1/upload) or 'dataset.raw_dir'.")
+
     out_dir = request.output.out_dir
     combine = request.output.combine
 
@@ -282,7 +311,7 @@ def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks
         "error": None,
     })
 
-    background_task.add_task(run_preprocess_job, job_id, raw_dir, out_dir, spec, combine)
+    background_task.add_task(run_preprocess_job, job_id, raw_dir, out_dir, spec, combine, request.session_id)
 
     response = JobCreatedResponse(
         job_id=job_id, status=JobStatus.queued, status_url=f"/v1/preprocess/{job_id}"
@@ -401,15 +430,28 @@ def models_list():
 
 @app.post("/v1/train")
 def train_model(request: TrainConfigRequest, background_task: BackgroundTasks):
-    
-    # step 1. validate
 
-    if not (os.path.exists(request.npz_dir)):
+    # step 1. resolve npz_dir
+    if request.session_id:
+        session_data = job_store.get(f"{SESSION_KEY_PREFIX}{request.session_id}")
+        if session_data is None:
+            raise HTTPException(status_code=404, detail=f"Session '{request.session_id}' not found.")
+        npz_dir = session_data.get("npz_dir")
+        if npz_dir is None:
+            raise HTTPException(status_code=400, detail="Preprocessing has not completed for this session yet. Wait for the preprocess job to finish before training.")
+    elif request.npz_dir:
+        npz_dir = request.npz_dir
+    else:
+        raise HTTPException(status_code=400, detail="Provide either 'session_id' (after preprocessing) or 'npz_dir'.")
+
+    # step 2. validate
+
+    if not (os.path.exists(npz_dir)):
         raise HTTPException(status_code=400,detail= "NPZ directory not found")
 
     import glob as _glob
     night_files = [
-        f for f in _glob.glob(os.path.join(request.npz_dir, "*.npz"))
+        f for f in _glob.glob(os.path.join(npz_dir, "*.npz"))
         if "sleep_edf_all" not in os.path.basename(f)
     ]
     if len(night_files) == 0:
@@ -429,7 +471,7 @@ def train_model(request: TrainConfigRequest, background_task: BackgroundTasks):
     train_id = str(uuid.uuid4())
 
     job_store.set(train_id, {
-        "npz_dir": request.npz_dir,
+        "npz_dir": npz_dir,
         "status": JobStatus.queued,
         "model_out": model_out,
         "fs": request.fs,
@@ -443,7 +485,7 @@ def train_model(request: TrainConfigRequest, background_task: BackgroundTasks):
         "error": None,
     })
     
-    background_task.add_task(update_training, train_id, request.npz_dir, model_out, request.fs, request.n_splits)
+    background_task.add_task(update_training, train_id, npz_dir, model_out, request.fs, request.n_splits)
 
     return TrainingJobCreated(
         job_id=train_id,

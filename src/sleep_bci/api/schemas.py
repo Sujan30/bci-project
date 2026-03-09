@@ -77,7 +77,14 @@ class OutputDir(BaseModel):
         return v
 
 class PreprocessRequest(BaseModel):
-    dataset: DatasetDescription
+    session_id: Optional[str] = Field(
+        default=None,
+        description="Session ID returned by /v1/upload. When provided, raw_dir is resolved automatically."
+    )
+    dataset: Optional[DatasetDescription] = Field(
+        default=None,
+        description="Explicit dataset path. Required only when session_id is not provided."
+    )
     output: OutputDir
     preprocessing_config: PreprocessingConfig = Field(
         default_factory=PreprocessingConfig
@@ -92,6 +99,7 @@ class PreprocessRequest(BaseModel):
         default="v1",
         description="API contract version."
     )
+
 
 class DryRunFileInfo(BaseModel):
     psg_file: str
@@ -149,9 +157,13 @@ class PreprocessStatusResponse(BaseModel):
 
 
 class TrainConfigRequest(BaseModel):
-    npz_dir: str = Field(
-        ...,
-        description="The directory where your pre preprocessed .npz files live"
+    session_id: Optional[str] = Field(
+        default=None,
+        description="Session ID from /v1/upload. When provided, npz_dir is resolved automatically from the last preprocess run."
+    )
+    npz_dir: Optional[str] = Field(
+        default=None,
+        description="The directory where your pre preprocessed .npz files live. Required only when session_id is not provided."
     )
     model_out: Optional[str] = Field(
         default=None,

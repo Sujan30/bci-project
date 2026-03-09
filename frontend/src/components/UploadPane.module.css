@@ -1,0 +1,69 @@
+.pane { animation: fadein 0.22s ease; }
+
+.dropzone {
+  border: 1.5px dashed var(--border-bright);
+  border-radius: 6px;
+  padding: 42px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.dropzone:hover, .dragOver {
+  border-color: var(--cyan);
+  background: var(--cyan-dim);
+}
+
+.icon {
+  width: 44px; height: 44px;
+  margin: 0 auto 14px;
+  opacity: 0.35;
+  display: block;
+}
+
+.dropText {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+.dropSub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* File list */
+.fileList  { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.fileItem  {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.ftag {
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.psg { background: rgba(96,165,250,.12); color: #60a5fa; }
+.hyp { background: rgba(244,114,182,.12); color: #f472b6; }
+
+.fileName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fileSize { color: var(--text-dim); flex-shrink: 0; }
+.plus     { color: var(--text-dim); flex-shrink: 0; }
+
+.errMargin { margin-top: 14px; margin-bottom: 0; }
+
+/* success card extras */
+.sessionId { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
+.resultMsg { font-family: 'JetBrains Mono', monospace; font-size: 12px; margin-bottom: 12px; }
+.rawDir    { margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-dim); }
