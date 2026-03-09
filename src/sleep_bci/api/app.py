@@ -12,6 +12,7 @@ import time
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, BackgroundTasks, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 from sleep_bci.model.artifacts import load_bundle
 from sleep_bci.features.bandpower import extract_features_epoch
@@ -48,6 +49,14 @@ UPLOAD_PREFIX = "sleep-bci-upload-"
 OUTPUT_PREFIX = "sleep-bci-output-"
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 """""

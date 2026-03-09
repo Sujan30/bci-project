@@ -1,0 +1,78 @@
+/* ── Variables ───────────────────────────────────────────────────────── */
+:root {
+  --bg:            #04060a;
+  --surface:       #080d15;
+  --surface2:      #0c1320;
+  --border:        #17223a;
+  --border-bright: #243450;
+  --text:          #a8c0dc;
+  --text-dim:      #3a5070;
+  --text-bright:   #dce9f8;
+  --cyan:          #00e5c8;
+  --cyan-glow:     rgba(0, 229, 200, 0.2);
+  --cyan-dim:      rgba(0, 229, 200, 0.08);
+  --wake: #fbbf24;
+  --n1:   #34d399;
+  --n2:   #60a5fa;
+  --n3:   #a78bfa;
+  --rem:  #f472b6;
+}
+
+/* ── Reset ───────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* static noise overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* ── Shared inputs ───────────────────────────────────────────────────── */
+input[type='text'],
+input[type='number'] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 9px 12px;
+  color: var(--text-bright);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input[type='text']:focus,
+input[type='number']:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px var(--cyan-dim);
+}
+input::placeholder { color: var(--text-dim); }
+
+/* ── Keyframes ───────────────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blink-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px var(--cyan); }
+  50%       { opacity: .6; box-shadow: 0 0 16px var(--cyan), 0 0 30px rgba(0,229,200,.2); }
+}

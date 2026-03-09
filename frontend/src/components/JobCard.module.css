@@ -1,0 +1,109 @@
+.card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 18px 20px;
+  margin-top: 14px;
+  animation: fadein 0.22s ease;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 11px;
+}
+
+.jobId {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+}
+.queued    { background: rgba(251,191,36,.1);  color: #fbbf24; }
+.running   { background: rgba(96,165,250,.1);  color: #60a5fa; }
+.succeeded { background: rgba(52,211,153,.1);  color: #34d399; }
+.failed    { background: rgba(239,68,68,.1);   color: #ef4444; }
+
+.track {
+  height: 3px;
+  background: var(--bg);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 9px;
+}
+
+.fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(0,229,200,.38), var(--cyan));
+  border-radius: 2px;
+  transition: width 0.55s ease;
+  box-shadow: 0 0 7px rgba(0,229,200,.4);
+}
+.fillOk  {
+  background: linear-gradient(90deg, rgba(52,211,153,.35), #34d399);
+  box-shadow: 0 0 7px rgba(52,211,153,.35);
+}
+.fillErr { background: rgba(239,68,68,.5); box-shadow: none; }
+
+.msg {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.resultsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.resItem {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px;
+  text-align: center;
+}
+.resVal {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--cyan);
+  display: block;
+}
+.resLabel {
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 4px;
+  display: block;
+}
+
+.outPath {
+  margin-top: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+.spinner {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border: 1.5px solid rgba(96,165,250,.3);
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
