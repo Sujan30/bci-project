@@ -110,6 +110,9 @@ UPLOAD_PREFIX = "sleep-bci-upload-"
 OUTPUT_PREFIX = "sleep-bci-output-"
 SESSION_KEY_PREFIX = "session:"
 
+# API version prefix — change here to bump all routes at once (e.g. "/v2")
+V = "/v1"
+
 APP_START_TIME = time.monotonic()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -200,7 +203,7 @@ _session_buffers: dict[str, EpochBuffer] = {}
 # Health
 # ─────────────────────────────────────────────────────────────────────────────
 
-@app.get("/v1/health", response_model=HealthResponse)
+@app.get(f"{V}/health", response_model=HealthResponse)
 async def v1_health():
     return HealthResponse(
         status="ok",
@@ -226,7 +229,7 @@ def read_root():
 # Upload
 # ─────────────────────────────────────────────────────────────────────────────
 
-@app.post("/v1/upload", response_model=UploadResponse)
+@app.post(f"{V}/upload", response_model=UploadResponse)
 async def upload_edf_files(files: List[UploadFile] = File(...)):
     for f in files:
         if not f.filename or not f.filename.lower().endswith(".edf"):
@@ -373,7 +376,7 @@ def run_preprocess_job(
                 logger.warning("Failed to clean up %s: %s", raw_dir, cleanup_err)
 
 
-@app.post("/v1/preprocess")
+@app.post(f"{V}/preprocess")
 async def preprocess_data(request: PreprocessRequest, background_task: BackgroundTasks):
     if request.session_id:
         session_data = job_store.get(f"{SESSION_KEY_PREFIX}{request.session_id}")
@@ -466,11 +469,11 @@ async def preprocess_data(request: PreprocessRequest, background_task: Backgroun
     return JobCreatedResponse(
         job_id=job_id,
         status=JobStatus.queued,
-        status_url=f"/v1/preprocess/{job_id}",
+        status_url=f"{V}/preprocess/{job_id}",
     )
 
 
-@app.get("/v1/preprocess/{job_id}")
+@app.get(f"{V}/preprocess/{{job_id}}")
 def get_preprocessing_status(job_id: str):
     if not job_store.exists(job_id):
         raise HTTPException(status_code=404, detail="job_id not found")
@@ -506,7 +509,7 @@ def _load_model_cached(model_id: str):
     return MODEL_CACHE[model_id]
 
 
-@app.get("/v1/models", response_model=ModelResponse)
+@app.get(f"{V}/models", response_model=ModelResponse)
 def models_list():
     try:
         models_dir = os.path.dirname(os.path.abspath(settings.model_path))
@@ -523,7 +526,7 @@ def models_list():
         )
 
 
-@app.get("/v1/models/{model_id}/metrics", response_model=ModelMetricsResponse)
+@app.get(f"{V}/models/{{model_id}}/metrics", response_model=ModelMetricsResponse)
 def get_model_metrics(model_id: str):
     model_path = _resolve_model_path(model_id)
     if not os.path.exists(model_path):
@@ -590,6 +593,11 @@ def _run_training_job(
         with open(results_path, "w") as f:
             json.dump(results, f, indent=2)
 
+        cm_path = os.path.join(out_dir, "confusion_matrix.json")
+        if os.path.exists(cm_path):
+            with open(cm_path) as f:
+                results["confusion_matrix"] = json.load(f)
+
         _job = job_store.get(train_id)
         _job["status"] = JobStatus.succeeded
         _job["progress"] = 100
@@ -614,7 +622,7 @@ def _run_training_job(
         logger.error("Training %s failed: %s", train_id, e)
 
 
-@app.post("/v1/train")
+@app.post(f"{V}/train")
 async def train_model(request: TrainConfigRequest, background_task: BackgroundTasks):
     if request.session_id:
         session_data = job_store.get(f"{SESSION_KEY_PREFIX}{request.session_id}")
@@ -695,11 +703,11 @@ async def train_model(request: TrainConfigRequest, background_task: BackgroundTa
     return TrainingJobCreated(
         job_id=train_id,
         status=JobStatus.queued,
-        status_url=f"/v1/train/{train_id}",
+        status_url=f"{V}/train/{train_id}",
     )
 
 
-@app.get("/v1/train/{train_id}")
+@app.get(f"{V}/train/{{train_id}}")
 def get_training_status(train_id: str):
     if not job_store.exists(train_id):
         raise HTTPException(status_code=404, detail="train_id not found")
@@ -722,7 +730,7 @@ def get_training_status(train_id: str):
 # WebSocket streaming — chunk-based real-time inference
 # ─────────────────────────────────────────────────────────────────────────────
 
-@app.websocket("/v1/stream")
+@app.websocket(f"{V}/stream")
 async def stream_inference(websocket: WebSocket, model_id: str):
     """Real-time EEG sleep-stage inference via WebSocket.
 

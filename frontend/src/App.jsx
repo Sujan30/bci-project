@@ -57,10 +57,18 @@ function PipelineApp() {
         <div className={styles.pipeline}>
           <PipelineNav active={step} onChange={setStep} />
 
-          {step === 0 && <UploadPane    onDone={(d) => { setUploadResult(d); setStep(1); }} />}
-          {step === 1 && <PreprocessPane sessionId={uploadResult?.session_id} onDone={(dir) => { setPreprocessDir(dir); setStep(2); }} />}
-          {step === 2 && <TrainPane     npzDir={preprocessDir} onTrained={fetchModels} />}
-          {step === 3 && <StreamPane    models={models} />}
+          <div style={{ display: step === 0 ? 'block' : 'none' }}>
+            <UploadPane onDone={(d) => { setUploadResult(d); setStep(1); }} />
+          </div>
+          <div style={{ display: step === 1 ? 'block' : 'none' }}>
+            <PreprocessPane sessionId={uploadResult?.session_id} onDone={(dir) => { setPreprocessDir(dir); setStep(2); }} />
+          </div>
+          <div style={{ display: step === 2 ? 'block' : 'none' }}>
+            <TrainPane npzDir={preprocessDir} onTrained={fetchModels} />
+          </div>
+          <div style={{ display: step === 3 ? 'block' : 'none' }}>
+            <StreamPane models={models} />
+          </div>
         </div>
 
         <Sidebar
