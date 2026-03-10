@@ -9,12 +9,26 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-data/processed/**
+
+# Data — raw EDF files must NOT be committed (large binary, ~100-500 MB each)
+# Use scripts/download_sample_data.sh to obtain them
+data/raw/**
 !data/raw/.gitkeep
+*.edf
+
+# Processed artifacts (generated from raw data)
+data/processed/**
 !data/processed/.gitkeep
+
+# Model artifacts
 models/**
 !models/.gitkeep
+
+# Training results (generated)
+data/results/
+results/
+
+# Miscellaneous
 venv/
 claude_docs/
-data/results
 claude-docs/

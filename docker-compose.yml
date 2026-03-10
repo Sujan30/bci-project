@@ -48,6 +48,22 @@ services:
       - ./models:/app/models
     entrypoint: ["/docker-entrypoint.sh"]
 
+  # ARQ background worker — processes preprocessing and training jobs
+  worker:
+    build: .
+    container_name: sleep-bci-worker
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: ["arq", "sleep_bci.workers.settings.WorkerSettings"]
+
   # Development service with hot reload
   dev:
     build: .

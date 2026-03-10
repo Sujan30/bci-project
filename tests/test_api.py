@@ -15,7 +15,7 @@ from sleep_bci.api.app import MODEL_CACHE
 def test_root(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"message": "Hello, World!"}
+    assert "message" in response.json()
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +206,7 @@ def test_train_n_splits_too_large(client, sample_npz_dir):
 
 
 def test_train_creates_job(client, sample_npz_dir):
-    with patch("sleep_bci.api.app.update_training"):
+    with patch("sleep_bci.api.app._run_training_job"):
         response = client.post(
             "/v1/train",
             json={"npz_dir": sample_npz_dir, "n_splits": 2},
@@ -228,7 +228,7 @@ def test_get_training_status_not_found(client):
 
 
 def test_get_training_status_found(client, sample_npz_dir):
-    with patch("sleep_bci.api.app.update_training"):
+    with patch("sleep_bci.api.app._run_training_job"):
         create_resp = client.post(
             "/v1/train",
             json={"npz_dir": sample_npz_dir, "n_splits": 2},

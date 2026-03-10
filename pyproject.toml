@@ -43,6 +43,9 @@ sleepbci-simulate = "sleep_bci.stream.simulate:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "integration: end-to-end integration tests (require real model training)",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}

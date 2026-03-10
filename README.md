@@ -1,76 +1,45 @@
-# 🧠 Sleep-BCI: Real-Time EEG Sleep Stage Classifier
+# Sleep-BCI: EEG Sleep Stage Classifier
 
-[![CI](https://github.com/yourusername/sleep-bci/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/sleep-bci/actions)
-[![Coverage](https://codecov.io/gh/yourusername/sleep-bci/branch/master/graph/badge.svg)](https://codecov.io/gh/yourusername/sleep-bci)
+[![CI](https://github.com/Sujan30/bci-project/actions/workflows/ci.yml/badge.svg)](https://github.com/Sujan30/bci-project/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
-**Production-grade pipeline** for EEG sleep stage classification: from raw polysomnography (PSG) data to real-time inference API.
-
-> **Why This Matters**: Automated sleep staging is critical for diagnosing sleep disorders (apnea, insomnia) and optimizing therapy. Manual scoring by technicians takes 2-4 hours per night. This system automates the process in minutes while matching expert-level accuracy.
+Research-grade pipeline for EEG sleep stage classification: from raw polysomnography (PSG) data to a REST + WebSocket inference API.
 
 ---
 
-## 🚀 60-Second Quickstart (Docker)
+## Limitations
 
-```bash
-# 1. Clone and enter directory
-git clone https://github.com/yourusername/sleep-bci && cd sleep-bci
+> **Read this before evaluating the project:**
 
-# 2. Download sample data (or use your own EDF files)
-./scripts/download_sample_data.sh  # Gets 3 nights from Sleep-EDF
-
-# 3. Start the API server
-docker-compose up api
-
-# 4. Open http://localhost:8000/docs - You'll see:
-```
-
-**Example API Response**:
-```json
-{
-  "job_id": "abc-123",
-  "status": "succeeded",
-  "progress": 100,
-  "results": {
-    "balanced_accuracy": 0.724,
-    "macro_f1": 0.718,
-    "total_epochs": 8281
-  }
-}
-```
-
-✅ **That's it!** Your API is running. Continue reading for what to do next.
+- **Single EEG channel**: uses only "EEG Fpz-Cz"; multi-channel fusion is not implemented.
+- **Small dataset**: 3 nights / 8,281 epochs from Sleep-EDF Expanded (3 subjects).
+- **Baseline accuracy**: 53.6% balanced accuracy (2-fold GroupKFold CV) — not clinical-grade; N1 recall is near zero due to class imbalance (~2.7% of epochs).
+- **LDA baseline**: Linear Discriminant Analysis is a proof-of-concept; production systems use CNNs or attention-based RNNs.
+- **No online learning**: model does not update incrementally.
+- **Jobs run in-process**: when Redis is unavailable, jobs use FastAPI BackgroundTasks (not fault-tolerant).
 
 ---
 
-## 📊 What This Project Does
+## What This Project Does
 
-```mermaid
-graph LR
-    A[EDF Files] -->|Preprocessing| B[Filtered EEG + Labels]
-    B -->|Feature Extraction| C[Bandpower Features]
-    C -->|LDA Classifier| D[Sleep Stage Predictions]
-    D -->|FastAPI| E[REST API / WebSocket]
-    E --> F[Client App]
+```
+EDF Files → Preprocessing (MNE) → Bandpower Features → LDA / RandomForest → REST API + WebSocket
 ```
 
-**Pipeline Stages**:
-1. **Preprocessing**: Load EDF → filter (0.3-30 Hz) → epoch (30s windows) → extract channel
-2. **Feature Extraction**: Compute bandpower (δ, θ, α, β, γ) + statistical features → 7D feature vector
-3. **Training**: LDA classifier with GroupKFold CV (respects subject independence)
-4. **Inference**: REST API with async job processing + WebSocket streaming
+**Pipeline stages**:
+1. **Preprocessing**: Load EDF → bandpass filter (0.3–30 Hz) → 30-second epochs → extract channel
+2. **Feature extraction**: Bandpower (δ, θ, α, β, γ) + ratio features → 7D feature vector per epoch
+3. **Training**: LDA or RandomForest classifier with GroupKFold CV (subject-independent splits)
+4. **Inference**: FastAPI REST + chunk-based WebSocket streaming (2.5s chunks → 30s epoch → prediction)
 
-**Supported Sleep Stages**:
-- W (Wake)
-- N1, N2, N3 (Non-REM stages)
-- REM (Rapid Eye Movement)
+**Supported sleep stages**: W (Wake), N1, N2, N3, REM
 
 ---
 
-## 📈 Results (Proof-of-Concept)
+## Results (3-Night Proof-of-Concept)
 
-**Trained on 3 nights from Sleep-EDF Expanded** (SC4001-SC4003):
+**Trained on 3 nights from Sleep-EDF Expanded** (SC4001, SC4002, SC4011):
 
 | Metric | Score |
 |--------|-------|
@@ -79,215 +48,123 @@ graph LR
 | Total Epochs | 8,281 |
 | Cross-Validation | 2-fold GroupKFold |
 
-**Confusion Matrix**:
-```
-           Pred: W   N1   N2   N3  REM
-Actual: W    89%   0%   5%   3%   3%
-       N1     0%   0%  50%  25%  25%
-       N2    15%   0%  75%   5%   5%
-       N3    10%   0%  10%  75%   5%
-      REM    20%   0%  10%   5%  65%
-```
-
-> **Note**: Performance improves to **~70-75%** balanced accuracy with full dataset (20+ subjects). Current metrics are limited by small sample size (3 nights) and demonstrate pipeline functionality.
+N1 class is severely underrepresented (58–109 epochs per night, ~2.7% of data) and is misclassified in nearly all folds.
 
 ---
 
-## 🎯 Architecture
+## 60-Second Quickstart (Docker)
 
-### System Design
+```bash
+# 1. Clone
+git clone https://github.com/Sujan30/bci-project && cd bci-project
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Client Layer                         │
-│  (curl, Python SDK, Web Dashboard, Lab Streaming Layer)     │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     FastAPI Server                          │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ /v1/preprocess│  │   /v1/train   │  │  /v1/stream   │     │
-│  │  (async jobs) │  │  (async jobs) │  │  (WebSocket)  │     │
-│  └──────────────┘  └──────────────┘  └──────────────┘      │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Processing Layer                         │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │   MNE    │→ │ Bandpower│→ │ StandardScaler │→ │  LDA     │   │
-│  │(filtering)│  │ Features │  │              │  │Classifier│   │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Storage Layer                            │
-│     Redis (jobs) | File System (models, data, results)      │
-└─────────────────────────────────────────────────────────────┘
+# 2. Download sample data (3 nights from Sleep-EDF via PhysioNet)
+bash scripts/download_sample_data.sh 3
+
+# 3. Start API server + Redis
+docker-compose up api
+
+# 4. Open interactive docs
+# http://localhost:8000/docs
 ```
 
-### Key Design Decisions
-
-1. **Background Jobs**: Long-running tasks (preprocessing, training) use FastAPI BackgroundTasks + Redis for persistence
-2. **GroupKFold CV**: Prevents data leakage by splitting on subject ID, not epochs
-3. **MNE for Signal Processing**: Industry-standard library for EEG analysis
-4. **Docker Multi-Stage Build**: Separates build deps from runtime → smaller image (~1.2GB)
+**Verify the API is running**:
+```bash
+curl http://localhost:8000/v1/health
+# {"status":"ok","uptime_s":4.2,"redis_connected":true,"model_loaded":false,"job_store_backend":"redis"}
+```
 
 ---
 
-## 🛠️ Installation & Usage
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        Client Layer                              │
+│   (curl, Python SDK, WebSocket client, Lab Streaming Layer)      │
+└─────────────────────────┬────────────────────────────────────────┘
+                          │
+                          ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    FastAPI Server                                │
+│  POST /v1/preprocess  POST /v1/train  WS /v1/stream             │
+│  GET  /v1/preprocess/{id}  GET /v1/train/{id}                   │
+│  GET  /v1/models  GET /v1/models/{id}/metrics  GET /v1/health   │
+└──────────┬─────────────────────────────────────────┬────────────┘
+           │ enqueue_job (ARQ)                        │ BackgroundTasks
+           ▼                                          │ (fallback)
+┌──────────────────────┐                             │
+│  ARQ Worker Process  │◄────────────────────────────┘
+│  (preprocessing,     │
+│   training)          │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                      Storage Layer                               │
+│  Redis (job queue + status) │ File system (models, NPZ, results) │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Key design decisions**:
+- **GroupKFold CV**: splits on subject night, not epochs — prevents data leakage
+- **ARQ worker queue**: durable job execution via Redis (falls back to BackgroundTasks)
+- **Chunk-based WebSocket**: accepts 250-sample chunks; buffers to 3000 samples before inference
+- **MNE**: industry-standard EEG library for loading and filtering EDF files
+
+---
+
+## Installation & Usage
 
 ### Option 1: Docker (Recommended)
 
-**Prerequisites**: Docker 20.10+, Docker Compose 2.0+
-
 ```bash
-# Start API server
+# Start API + Redis
 docker-compose up api
 
-# Visit http://localhost:8000/docs for interactive API documentation
+# Start worker (for durable job processing)
+docker-compose up worker
 
-# Run CLI commands
-docker-compose run --rm cli sleepbci-preprocess --raw_dir /app/data/raw --out_dir /app/data/processed
-docker-compose run --rm cli sleepbci-train --processed_dir /app/data/processed --model_out /app/models/lda.joblib --n_splits 2
-
-# Development mode (hot reload)
+# Development mode with hot reload
 docker-compose --profile dev up dev
 ```
 
----
+### Option 2: Local Python
 
-### Option 2: Local Dev with `start.sh` (Recommended for local development)
-
-**Prerequisites**: Python 3.11+, pip, Redis (optional but recommended)
-
-**1. Set up your environment**:
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-pip install -e .
-```
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt && pip install -e .
 
-**2. Configure `.env`** (copy from the example and edit as needed):
-```bash
-cp .env.example .env  # or create manually
-```
+# Optional: start Redis (for persistent job store)
+redis-server --daemonize yes
 
-Minimal `.env`:
-```env
-REDIS_URL=redis://localhost:6379
-PORT=8000
-HOST=0.0.0.0
-```
-
-> All fields have defaults — the server starts without any `.env`. Only `REDIS_URL` is worth setting; without it, jobs fall back to in-memory (lost on restart).
-
-**3. Run the startup script**:
-```bash
+# Start API
 ./start.sh
 ```
 
-That's it. `start.sh` will:
-- Load your `.env` and validate `REDIS_URL`
-- Start `redis-server` automatically if it isn't already running
-- Launch `uvicorn` with hot-reload on the configured host and port
+---
 
-**4. Verify everything is wired up**:
+## Getting the Data
+
+The `data/raw/` directory is excluded from git. Download from PhysioNet:
+
 ```bash
-curl http://localhost:8000/health
-# {"status": "we are flowing!", "job_store_backend": "redis"}
+bash scripts/download_sample_data.sh 3   # 3 nights (~300 MB)
+bash scripts/download_sample_data.sh 5   # 5 nights (~500 MB)
 ```
 
-`job_store_backend` should say `"redis"` (not `"memory"`) to confirm Redis is connected.
+> PhysioNet requires a free account. Register at: https://physionet.org/register/
+
+**Dataset**: Sleep-EDF Expanded (Cassette subset) — Kemp et al., PhysioNet
+**DOI**: [10.13026/C2SC7Q](https://doi.org/10.13026/C2SC7Q)
 
 ---
 
-### Option 3: Local Python Environment (manual)
+## API Usage Examples
 
-**Prerequisites**: Python 3.11+, pip
-
-```bash
-# 1. Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# 2. Install package
-pip install -r requirements.txt
-pip install -e .
-
-# 3. Start Redis (optional, for persistent job store)
-redis-server --daemonize yes
-
-# 4. Run pipeline
-sleepbci-preprocess --raw_dir data/raw --out_dir data/processed
-sleepbci-train --processed_dir data/processed --model_out models/lda.joblib --n_splits 2
-sleepbci-serve --model_path models/lda.joblib
-
-# 5. Test API
-curl http://localhost:8000/
-```
-
----
-
-## 📂 Getting the Data
-
-### Sleep-EDF Database (Recommended for Testing)
-
-1. **Download** from PhysioNet:
-   ```bash
-   wget -r -N -c -np https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette/
-   ```
-
-2. **Organize** files:
-   ```
-   data/raw/sleep-cassette/
-   ├── SC4001E0-PSG.edf         # Polysomnography (EEG, EOG, EMG, etc.)
-   ├── SC4001EC-Hypnogram.edf   # Sleep stage annotations
-   ├── SC4002E0-PSG.edf
-   ├── SC4002EC-Hypnogram.edf
-   └── ...
-   ```
-
-3. **Run preprocessing**:
-   ```bash
-   sleepbci-preprocess --raw_dir data/raw/sleep-cassette --out_dir data/processed
-   ```
-
-**Expected Output**:
-```
-Processing nights: 100%|██████████| 3/3 [00:45<00:00, 15.2s/night]
-✅ Kept 3 nights, skipped 0
-✅ Saved to data/processed/
-```
-
-### Using Your Own Data
-
-**Requirements**:
-- EDF format with at least one EEG channel (e.g., "EEG Fpz-Cz")
-- Matching hypnogram EDF file with sleep stage annotations
-- Filenames: `*PSG.edf` (data) and `*Hypnogram.edf` (labels)
-
-**Supported Annotation Format**:
-```
-Sleep stage W  → Wake (0)
-Sleep stage 1  → N1 (1)
-Sleep stage 2  → N2 (2)
-Sleep stage 3  → N3 (3)
-Sleep stage 4  → N3 (3)  [merged with N3]
-Sleep stage R  → REM (4)
-```
-
----
-
-## 🔌 API Usage Examples
-
-### 1. Upload & Preprocess Data
+### 1. Preprocess EDF Files
 
 ```bash
-# Start preprocessing job
 curl -X POST http://localhost:8000/v1/preprocess \
   -H "Content-Type: application/json" \
   -d '{
@@ -295,238 +172,149 @@ curl -X POST http://localhost:8000/v1/preprocess \
     "preprocessing_config": {
       "channel": "EEG Fpz-Cz",
       "epochs": 30,
-      "bandpass": [0.5, 30]
+      "bandpass": [0.3, 30.0]
     },
     "output": {"out_dir": null, "combine": true},
     "dry_run": false
   }'
 
-# Response:
-{
-  "job_id": "abc-123-def-456",
-  "status": "queued",
-  "status_url": "/v1/preprocess/abc-123-def-456"
-}
+# Response
+{"job_id": "abc-123", "status": "queued", "status_url": "/v1/preprocess/abc-123"}
 
-# Check status
-curl http://localhost:8000/v1/preprocess/abc-123-def-456
-
-# Response (when complete):
-{
-  "job_id": "abc-123-def-456",
-  "status": "succeeded",
-  "progress": 100,
-  "output_location": "/tmp/sleep-bci-output-xyz"
-}
+# Poll status
+curl http://localhost:8000/v1/preprocess/abc-123
 ```
-
----
 
 ### 2. Train Classifier
 
 ```bash
-curl -X POST http://localhost:8000/train \
+curl -X POST http://localhost:8000/v1/train \
   -H "Content-Type: application/json" \
   -d '{
     "npz_dir": "/app/data/processed",
     "model_out": null,
     "fs": 100.0,
-    "n_splits": 2
+    "n_splits": 2,
+    "model_type": "lda"
   }'
 
-# Response:
-{
-  "training_id": "train-789",
-  "status": "queued",
-  "status_url": "/train/train-789"
-}
+# model_type: "lda" or "random_forest"
+# Response
+{"job_id": "train-789", "status": "queued", "status_url": "/v1/train/train-789"}
 ```
 
----
+### 3. Get Training Metrics
 
-### 3. Real-Time Streaming Inference (WebSocket)
+```bash
+curl http://localhost:8000/v1/models/lda_pipeline/metrics
+# Returns per-class F1, balanced accuracy, confusion matrix path, training config
+```
+
+### 4. Real-Time Streaming Inference (WebSocket — chunk-based)
 
 ```python
-# client.py
-import asyncio
-import websockets
-import numpy as np
+import asyncio, json, numpy as np, websockets
 
-async def stream_predictions():
+async def stream():
     uri = "ws://localhost:8000/v1/stream?model_id=lda_pipeline"
     async with websockets.connect(uri) as ws:
-        # Send 30-second EEG epoch (3000 samples @ 100 Hz)
-        epoch = np.random.randn(1, 3000).tolist()
-        await ws.send(json.dumps({"epoch": epoch}))
+        # Send 12 chunks of 250 samples (= one 30s epoch at 100 Hz)
+        chunk = np.random.randn(250).tolist()
+        for i in range(12):
+            await ws.send(json.dumps({
+                "chunk": chunk,
+                "fs": 100.0,
+                "session_id": "session-001",
+            }))
+            resp = json.loads(await ws.recv())
+            if "stage" in resp:
+                print(resp)  # {"stage": "N2", "confidence": 0.87, "latency_ms": 4.2, "epoch_idx": 0}
 
-        # Receive prediction
-        response = await ws.recv()
-        print(response)  # {"stage": "N2", "confidence": 0.87}
+asyncio.run(stream())
+```
 
-asyncio.run(stream_predictions())
+Or use the test script:
+```bash
+python scripts/ws_stream_test.py           # chunk-based (default)
+python scripts/ws_stream_test.py --legacy  # full-epoch format
 ```
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
-# Run all tests with coverage
-pytest --cov=sleep_bci --cov-report=html
+# Unit + API tests (no Redis required)
+pytest -m "not integration" --cov=sleep_bci
 
-# Run specific test file
-pytest tests/test_preprocessing.py -v
-
-# Run with verbose output
-pytest -vv
+# End-to-end integration test (Redis must be running)
+pytest tests/test_integration.py -v -m integration
 ```
 
-**Current Coverage**: 85%+ (API, preprocessing, model, features)
+**Current**: 53 passing unit tests, 6 skipped. Integration test covers the full pipeline.
 
 ---
 
-## 🏗️ Development
-
-### Project Structure
+## Project Structure
 
 ```
-sleep-bci/
+bci-project/
 ├── src/sleep_bci/
-│   ├── preprocessing/    # EDF loading, filtering, epoching
-│   ├── features/         # Bandpower, statistical features
-│   ├── model/            # LDA training, artifacts
-│   ├── api/              # FastAPI app, schemas
-│   └── stream/           # Real-time inference, LSL integration
-├── tests/                # Unit & integration tests
-├── notebooks/            # Jupyter analysis notebooks
+│   ├── api/          # FastAPI app, schemas, job store
+│   ├── features/     # Bandpower feature extraction
+│   ├── model/        # Training (LDA + RandomForest), artifacts
+│   ├── preprocessing/# EDF loading, filtering, epoching
+│   ├── stream/       # EpochBuffer for chunk-based streaming
+│   └── workers/      # ARQ task functions and worker settings
+├── tests/            # Unit + integration tests
+├── scripts/
+│   ├── download_sample_data.sh  # PhysioNet data downloader
+│   └── ws_stream_test.py        # WebSocket streaming client
 ├── data/
-│   ├── raw/              # Input EDF files (not in git)
-│   ├── processed/        # NPZ feature files
-│   └── results/          # Output logs, metrics
-├── models/               # Trained classifiers (.joblib)
-├── docs/                 # Architecture diagrams, API specs
-├── Dockerfile            # Multi-stage production build
-├── docker-compose.yml    # Orchestration (api, cli, dev, redis)
-└── pyproject.toml        # Package config & dependencies
+│   ├── raw/          # EDF input files (not in git — use download script)
+│   ├── processed/    # NPZ feature artifacts (not in git)
+│   └── README.md     # Dataset manifest + checksums
+├── models/           # Trained classifiers (.joblib)
+├── Dockerfile
+├── docker-compose.yml
+└── pyproject.toml
 ```
 
-### Adding New Features
-
-1. **New Model Algorithm**:
-   - Create `src/sleep_bci/model/xgboost_train.py`
-   - Implement `train_xgboost()` with same signature as `train_lda()`
-   - Add CLI command in `pyproject.toml`
-
-2. **New Feature Type**:
-   - Add to `src/sleep_bci/features/` (e.g., `hjorth.py`)
-   - Update `extract_features_batch()` to include new features
-   - Retrain model with expanded feature vector
-
-3. **New API Endpoint**:
-   - Add to `src/sleep_bci/api/app.py`
-   - Define schemas in `src/sleep_bci/api/schemas.py`
-   - Add tests in `tests/test_api_*.py`
-
 ---
 
-## 🚦 CI/CD Pipeline
+## Roadmap
 
-**GitHub Actions** runs on every push/PR:
+### Completed
+- [x] End-to-end EDF → model → API pipeline
+- [x] Docker + Redis support
+- [x] Chunk-based WebSocket streaming with EpochBuffer
+- [x] ARQ durable worker queue
+- [x] RandomForest baseline (class-balanced)
+- [x] Confusion matrix + per-class F1 artifacts
+- [x] End-to-end integration test
+- [x] Data manifest + checksums
 
-1. ✅ Linting (ruff)
-2. ✅ Type checking (mypy)
-3. ✅ Tests (pytest)
-4. ✅ Coverage check (>80%)
-5. ✅ Docker build test
-
-See `.github/workflows/ci.yml` for details.
-
----
-
-## 🔮 Roadmap
-
-### ✅ Completed
-- [x] End-to-end pipeline (EDF → model → API)
-- [x] Docker support
-- [x] Async job processing
-- [x] WebSocket streaming inference
-- [x] 85%+ test coverage
-- [x] CI/CD pipeline
-
-### 🚧 In Progress
-- [x] Redis job persistence
-- [ ] Live LSL stream integration
-- [ ] Web dashboard (real-time visualization)
-
-### 🎯 Planned
-- [ ] Multi-model comparison (LDA vs XGBoost vs CNN)
-- [ ] Online learning (incremental updates)
+### Planned
+- [ ] Multi-channel feature fusion (improve N1 recall)
+- [ ] CNN / attention-based model baseline
 - [ ] Prometheus metrics + Grafana dashboard
-- [ ] Mobile app (React Native)
+- [ ] Online learning (incremental model updates)
+- [ ] LSL (Lab Streaming Layer) live data integration
 
 ---
 
-## 📚 Learn More
+## References
 
-### Papers Implemented
-- [Rechtschaffen & Kales, 1968](https://psycnet.apa.org/record/1968-35038-000) - Manual sleep staging rules
-- [Aboalayon et al., 2016](https://pubmed.ncbi.nlm.nih.gov/27612465/) - Sleep-EDF dataset benchmarks
-
-### Related Projects
-- [YASA](https://github.com/raphaelvallat/yasa) - Advanced sleep analysis toolkit
-- [MNE-Python](https://mne.tools/) - Core signal processing library
-- [Sleep-EDF Database](https://physionet.org/content/sleep-edfx/1.0.0/) - Public benchmark dataset
-
-### BCI Context
-Sleep staging is a **supervised learning** problem (unlike motor imagery BCI). Key challenges:
-- Class imbalance (N1 stage ~5% of data)
-- Subject variability (age, medications, disorders)
-- Real-time constraints (<1s latency for closed-loop systems)
+- Kemp et al. (2000). *Sleep-EDF Database*. PhysioNet. DOI: 10.13026/C2SC7Q
+- Rechtschaffen & Kales (1968). Manual sleep staging rules.
+- [YASA](https://github.com/raphaelvallat/yasa) — advanced sleep analysis toolkit
+- [MNE-Python](https://mne.tools/) — core EEG signal processing library
 
 ---
 
-## 🤝 Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-**Quick Start**:
-```bash
-# 1. Fork & clone
-git clone https://github.com/yourusername/sleep-bci
-
-# 2. Create feature branch
-git checkout -b feature/your-feature
-
-# 3. Make changes & test
-pytest
-
-# 4. Submit PR
-git push origin feature/your-feature
-```
-
----
-
-## 📜 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## 🙏 Acknowledgments
-
-- **Sleep-EDF Database**: Kemp et al., PhysioNet
-- **MNE-Python**: Gramfort et al., 2013
-- **FastAPI**: Sebastián Ramírez
-
----
-
-## 📧 Contact
+## Contact
 
 **Author**: Sujan Nandikol Sunilkumar
 **Email**: nandikolsujan@gmail.com
 **LinkedIn**: [linkedin.com/in/suqjan](https://linkedin.com/in/suqjan)
 **GitHub**: [@sujan30](https://github.com/sujan30)
-
----
-
-**⭐ If this project helped you, please star it on GitHub!**

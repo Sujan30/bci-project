@@ -156,6 +156,11 @@ class PreprocessStatusResponse(BaseModel):
 
 
 
+class ModelType(str, Enum):
+    lda = "lda"
+    random_forest = "random_forest"
+
+
 class TrainConfigRequest(BaseModel):
     session_id: Optional[str] = Field(
         default=None,
@@ -168,7 +173,7 @@ class TrainConfigRequest(BaseModel):
     model_out: Optional[str] = Field(
         default=None,
         examples=[None],
-        description="Where the training output will leave"
+        description="Where the training output will be saved (absolute path). Auto-generated if omitted."
     )
     fs: float = Field(
         default=100.0,
@@ -178,7 +183,11 @@ class TrainConfigRequest(BaseModel):
     n_splits: int = Field(
         default=5,
         ge=2,
-        description="the number of cross validation folds"
+        description="Number of cross-validation folds (GroupKFold)"
+    )
+    model_type: ModelType = Field(
+        default=ModelType.lda,
+        description="Classifier algorithm: 'lda' (Linear Discriminant Analysis) or 'random_forest'."
     )
 
     @field_validator("model_out", mode="before")
@@ -222,6 +231,23 @@ class TrainingStatusResponse(BaseModel):
 class ModelResponse(BaseModel):
     models: List[str]
     num_models: int
+
+
+class HealthResponse(BaseModel):
+    status: str
+    uptime_s: float
+    redis_connected: bool
+    model_loaded: bool
+    job_store_backend: str
+
+
+class ModelMetricsResponse(BaseModel):
+    model_type: Optional[str] = None
+    total_epochs: Optional[int] = None
+    total_nights: Optional[int] = None
+    overall: Optional[Dict[str, Any]] = None
+    folds: Optional[List[Dict[str, Any]]] = None
+    training_config: Optional[Dict[str, Any]] = None
 
 
 

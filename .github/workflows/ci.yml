@@ -1,5 +1,6 @@
 name: CI
 on: [push, pull_request]
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -9,5 +10,27 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -e .[dev]
-      - run: pytest --cov=sleep_bci --cov-report=xml
+      - run: pytest --cov=sleep_bci --cov-report=xml -m "not integration"
       - uses: codecov/codecov-action@v3
+
+  test-integration:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+    env:
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: pip install -e .[dev]
+      - run: pytest tests/test_integration.py -v -m integration
