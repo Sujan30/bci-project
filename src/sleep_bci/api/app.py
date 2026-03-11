@@ -663,12 +663,16 @@ async def train_model(request: TrainConfigRequest, background_task: BackgroundTa
             ),
         )
 
+    model_type = request.model_type.value if hasattr(request.model_type, "value") else str(request.model_type)
+
     if request.model_out is None:
-        model_out = os.path.join(tempfile.mkdtemp(prefix=OUTPUT_PREFIX), "model.joblib")
+        # Default: save into the models/ directory so the model is immediately
+        # accessible via /v1/stream?model_id=<model_type>_pipeline.
+        # Users can override with an absolute path in model_out.
+        models_dir = os.path.dirname(os.path.abspath(settings.model_path))
+        model_out = os.path.join(models_dir, f"{model_type}_pipeline.joblib")
     else:
         model_out = request.model_out
-
-    model_type = request.model_type.value if hasattr(request.model_type, "value") else str(request.model_type)
     train_id = str(uuid.uuid4())
 
     job_store.set(train_id, {

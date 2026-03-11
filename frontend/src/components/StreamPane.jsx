@@ -18,7 +18,7 @@ function mkDemoFrame(seqRef) {
   };
 }
 
-export default function StreamPane({ models }) {
+export default function StreamPane({ forceDemoMode = false, className }) {
   const [modelId,    setModelId]    = useState('');
   const [demo,       setDemo]       = useState(true);
   const [connected,  setConnected]  = useState(false);
@@ -88,7 +88,16 @@ export default function StreamPane({ models }) {
     return map;
   }
 
-  useEffect(() => () => { clearInterval(demoRef.current); wsRef.current?.close(); }, []);
+  useEffect(() => {
+    if (forceDemoMode) {
+      startDemo();
+    }
+    return () => {
+      clearInterval(demoRef.current);
+      wsRef.current?.close();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forceDemoMode]);
 
   const toggleDemo = val => {
     setDemo(val);
@@ -102,8 +111,9 @@ export default function StreamPane({ models }) {
   const color = stg?.color ?? 'var(--text-dim)';
 
   return (
-    <div className={styles.pane}>
+    <div className={`${styles.pane} ${className || ''}`}>
       {/* Controls */}
+      {!forceDemoMode && (
       <div className={s.card}>
         <div className={s.cardTitle}>Live Inference Stream</div>
         <div className={styles.controls}>
@@ -148,6 +158,7 @@ export default function StreamPane({ models }) {
 
         {wsErr && <div className={s.errStrip}>{wsErr}</div>}
       </div>
+      )}
 
       {connected && (
         <>

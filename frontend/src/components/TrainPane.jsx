@@ -25,7 +25,9 @@ export default function TrainPane({ onTrained, npzDir }) {
         stopPoll();
         if (d.status === 'succeeded') onTrained?.();
       }
-    } catch (_) {}
+    } catch {
+      // ignore poll errors
+    }
   }
 
   async function submit() {

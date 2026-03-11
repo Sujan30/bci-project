@@ -33,7 +33,9 @@ export default function PreprocessPane({ sessionId, onDone }) {
         stopPoll();
         if (d.status === 'succeeded') onDone?.(d.output_location);
       }
-    } catch (_) {}
+    } catch {
+      // ignore poll errors
+    }
   }
 
   async function submit() {

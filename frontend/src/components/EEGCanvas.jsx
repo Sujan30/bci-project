@@ -7,7 +7,7 @@ const WAVES = [
   { freq: 9.0,  amp: 3,  speed: 0.013,  color: '#f472b6', lw: 0.55 },
 ];
 
-export default function EEGCanvas() {
+export default function EEGCanvas({ opacity = 0.32, style = {} }) {
   const canvasRef = useRef(null);
   const rafRef    = useRef(null);
   const tRef      = useRef(0);
@@ -68,8 +68,9 @@ export default function EEGCanvas() {
         inset: 0,
         width: '100%',
         height: '100%',
-        opacity: 0.32,
+        opacity,
         display: 'block',
+        ...style,
       }}
     />
   );

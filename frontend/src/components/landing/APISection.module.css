@@ -1,0 +1,70 @@
+.section { max-width: 1100px; margin: 0 auto; padding: 100px 2rem; }
+
+.header {
+  margin-bottom: 24px;
+}
+.title {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: -0.02em;
+}
+
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+.tab {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 9px 20px;
+  background: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  margin-bottom: -1px; /* overlap border */
+}
+.tab[data-active='true'] {
+  color: var(--cyan);
+  background: rgba(0,229,200,0.05);
+  border-color: var(--border);
+  border-bottom-color: var(--surface); /* creates "tab is open" illusion */
+}
+
+/* Ensure the code block connects visually to the tabs */
+.codeContainer > div {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.docsNote {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 16px;
+  text-align: right;
+}
+.docsNote a { color: var(--cyan); text-decoration: none; }
+
+@media (max-width: 600px) {
+  .tabs {
+    flex-direction: column;
+    border-bottom: none;
+  }
+  .tab {
+    border: 1px solid var(--border);
+    margin-bottom: 4px;
+    border-radius: 4px;
+  }
+  .tab[data-active='true'] {
+    border-bottom-color: var(--border);
+  }
+  .codeContainer > div {
+    border-radius: 6px;
+    margin-top: 8px;
+  }
+  .codeContainer pre {
+    font-size: 11px;
+  }
+}

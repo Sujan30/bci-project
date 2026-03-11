@@ -87,7 +87,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/"    element={<LandingPage />} />
-      <Route path="/app" element={<PipelineApp />} />
+      <Route path="/console" element={<PipelineApp />} />
     </Routes>
   );
 }
