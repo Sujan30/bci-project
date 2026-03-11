@@ -4,7 +4,7 @@ import JobCard from './JobCard';
 import s from './shared.module.css';
 import styles from './FormPane.module.css';
 
-const DEFAULT = { npz_dir: '', model_out: '', fs: 100, n_splits: 2 };
+const DEFAULT = { npz_dir: '', model_out: '', fs: 100, n_splits: 2, model_type: 'lda' };
 
 export default function TrainPane({ onTrained, npzDir }) {
   const [cfg,     setCfg]     = useState(DEFAULT);
@@ -39,6 +39,7 @@ export default function TrainPane({ onTrained, npzDir }) {
       model_out: cfg.model_out || null,
       fs:        parseFloat(cfg.fs),
       n_splits:  parseInt(cfg.n_splits),
+      model_type: cfg.model_type,
     };
     try {
       const r = await fetch(`${API}/v1/train`, {
@@ -62,7 +63,7 @@ export default function TrainPane({ onTrained, npzDir }) {
   return (
     <div className={styles.pane}>
       <div className={s.card}>
-        <div className={s.cardTitle}>Train LDA Classifier</div>
+        <div className={s.cardTitle}>Train Classifier</div>
 
         {npzDir && (
           <div className={s.sessionBanner}>
@@ -71,6 +72,17 @@ export default function TrainPane({ onTrained, npzDir }) {
         )}
 
         <div className={s.grid2}>
+          <div className={`${s.field} ${s.full}`}>
+            <label className={s.label}>Model Architecture</label>
+            <select 
+              value={cfg.model_type} 
+              onChange={e => set('model_type', e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', background: 'var(--bg-el)', color: 'var(--fg)', border: '1px solid var(--border)', borderRadius: '4px' }}
+            >
+              <option value="lda">Linear Discriminant Analysis (LDA)</option>
+              <option value="random_forest">Random Forest (RF)</option>
+            </select>
+          </div>
           {!npzDir && (
             <div className={`${s.field} ${s.full}`}>
               <label className={s.label}>NPZ Directory</label>
